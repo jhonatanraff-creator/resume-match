@@ -10,6 +10,14 @@ type JobDraft = {
   description: string;
 };
 
+type BaseResume = {
+  fileName: string;
+  fileSize: number;
+  pages: number;
+  text: string;
+  importedAt: string;
+};
+
 type StoredResult = {
   id: string;
   roundId: string;
@@ -19,36 +27,43 @@ type StoredResult = {
   compatibility: number;
   status: string;
   createdAt: string;
+  resumeText: string;
+  sourceResumeFile: string;
 };
 
 const stages = [
   "Analisando a descrição da vaga",
   "Comparando com o currículo-base",
   "Selecionando informações relevantes",
-  "Adaptando o currículo",
-  "Preparando resultado",
+  "Preparando versão do currículo",
+  "Finalizando resultado",
 ];
 
 export default function ProcessingPage() {
   const router = useRouter();
 
   const [jobs, setJobs] = useState<JobDraft[]>([]);
+  const [baseResume, setBaseResume] = useState<BaseResume | null>(null);
   const [progress, setProgress] = useState<Record<string, number>>({});
   const [finished, setFinished] = useState(false);
 
   useEffect(() => {
     const savedReview = localStorage.getItem("resume-match-review");
+    const savedResume = localStorage.getItem("resume-match-base-resume");
 
-    if (!savedReview) {
-      router.replace("/novo/vaga");
+    if (!savedReview || !savedResume) {
+      router.replace("/novo/importar");
       return;
     }
 
     try {
-      const parsed = JSON.parse(savedReview);
-      const savedJobs = parsed.jobs as JobDraft[];
+      const parsedReview = JSON.parse(savedReview);
+      const parsedResume = JSON.parse(savedResume) as BaseResume;
+
+      const savedJobs = parsedReview.jobs as JobDraft[];
 
       setJobs(savedJobs);
+      setBaseResume(parsedResume);
 
       const initialProgress: Record<string, number> = {};
 
@@ -58,12 +73,12 @@ export default function ProcessingPage() {
 
       setProgress(initialProgress);
     } catch {
-      router.replace("/novo/vaga");
+      router.replace("/novo/importar");
     }
   }, [router]);
 
   useEffect(() => {
-    if (jobs.length === 0) {
+    if (jobs.length === 0 || !baseResume) {
       return;
     }
 
@@ -92,7 +107,7 @@ export default function ProcessingPage() {
     }, 650);
 
     return () => window.clearInterval(interval);
-  }, [jobs]);
+  }, [jobs, baseResume]);
 
   const allFinished = useMemo(() => {
     if (jobs.length === 0) {
@@ -103,7 +118,7 @@ export default function ProcessingPage() {
   }, [jobs, progress]);
 
   useEffect(() => {
-    if (!allFinished || finished) {
+    if (!allFinished || finished || !baseResume) {
       return;
     }
 
@@ -121,9 +136,17 @@ export default function ProcessingPage() {
       compatibility: Math.floor(Math.random() * 16) + 80,
       status: "ready",
       createdAt,
+
+      // Por enquanto usamos o currículo-base real.
+      // Depois a IA substituirá isto pela versão adaptada.
+      resumeText: baseResume.text,
+
+      sourceResumeFile: baseResume.fileName,
     }));
 
-    const existingHistory = localStorage.getItem("resume-match-history");
+    const existingHistory = localStorage.getItem(
+      "resume-match-history",
+    );
 
     let history: StoredResult[] = [];
 
@@ -156,8 +179,8 @@ export default function ProcessingPage() {
 
     window.setTimeout(() => {
       router.push("/resultados");
-    }, 1400);
-  }, [allFinished, finished, jobs, router]);
+    }, 1200);
+  }, [allFinished, finished, jobs, router, baseResume]);
 
   function getStage(progressValue: number) {
     if (progressValue >= 100) return 5;
@@ -240,12 +263,30 @@ export default function ProcessingPage() {
           </h1>
 
           <p className="mt-5 text-base leading-7 text-[#686864]">
-            Cada vaga é analisada separadamente usando o mesmo currículo-base.
-            Os resultados desta rodada serão adicionados ao seu histórico.
+            Cada vaga é processada separadamente usando seu currículo-base.
+            Os resultados serão adicionados ao histórico.
           </p>
         </div>
 
-        <div className="mt-10 rounded-xl border border-[#DEDEDA] bg-white">
+        {baseResume && (
+          <div className="mt-8 flex items-center gap-4 rounded-xl border border-[#DEDEDA] bg-white p-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#FFE4EB] text-xs font-bold text-[#E9426B]">
+              PDF
+            </div>
+
+            <div>
+              <p className="text-xs text-[#777772]">
+                Currículo-base
+              </p>
+
+              <p className="mt-1 text-sm font-semibold">
+                {baseResume.fileName}
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-6 rounded-xl border border-[#DEDEDA] bg-white">
           <div className="flex items-center justify-between border-b border-[#E7E7E3] px-5 py-4 sm:px-6">
             <div>
               <p className="text-sm font-semibold">
@@ -334,8 +375,9 @@ export default function ProcessingPage() {
 
         <div className="mt-6 rounded-lg border border-[#DEDEDA] bg-white px-5 py-4">
           <p className="text-xs leading-5 text-[#686864]">
-            Nesta versão de teste, o processamento é simulado. Nenhuma API de
-            inteligência artificial está sendo utilizada ainda.
+            Nesta etapa ainda não estamos reescrevendo o currículo com IA.
+            Cada resultado recebe uma cópia real do seu currículo-base para
+            validarmos o fluxo completo primeiro.
           </p>
         </div>
 
