@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 420" role="img" aria-labelledby="title desc">
+  <title id="title">Resume Match monochrome logo</title>
+  <desc id="desc">Monochrome Resume Match logo.</desc>
+  <g transform="translate(24,18) scale(.72)" fill="#171717">
+    <rect x="86" y="82" width="242" height="300" rx="34" opacity="0.28"/>
+    <rect x="126" y="144" width="120" height="18" rx="9"/>
+    <rect x="126" y="198" width="150" height="18" rx="9"/>
+    <rect x="126" y="252" width="112" height="18" rx="9"/>
+    <path d="M210 156c0-18 14-32 32-32h150l64 64v206c0 18-14 32-32 32H242c-18 0-32-14-32-32V156Z"/>
+    <path d="M392 124v50c0 18 14 32 32 32h32" fill="#F5F5F5" opacity="0.95"/>
+    <rect x="270" y="238" width="116" height="20" rx="10" fill="#FFFFFF"/>
+    <rect x="270" y="288" width="138" height="20" rx="10" fill="#FFFFFF"/>
+    <rect x="270" y="338" width="138" height="20" rx="10" fill="#FFFFFF"/>
+  </g>
+
+  <text x="390" y="275" fill="#171717" font-family="Inter, Arial, Helvetica, sans-serif" font-size="154" font-weight="800" letter-spacing="-6">Resume</text>
+  <text x="1010" y="275" fill="#171717" font-family="Inter, Arial, Helvetica, sans-serif" font-size="154" font-weight="500" letter-spacing="-6">Match</text>
+</svg>

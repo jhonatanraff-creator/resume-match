@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Resume Match monochrome icon</title>
+  <desc id="desc">Monochrome overlapping resume documents.</desc>
+  <rect x="86" y="82" width="242" height="300" rx="34" fill="#171717" opacity="0.28"/>
+  <rect x="126" y="144" width="120" height="18" rx="9" fill="#171717"/>
+  <rect x="126" y="198" width="150" height="18" rx="9" fill="#171717"/>
+  <rect x="126" y="252" width="112" height="18" rx="9" fill="#171717"/>
+  <path d="M210 156c0-18 14-32 32-32h150l64 64v206c0 18-14 32-32 32H242c-18 0-32-14-32-32V156Z" fill="#171717"/>
+  <path d="M392 124v50c0 18 14 32 32 32h32" fill="#FFFFFF" opacity="0.95"/>
+  <rect x="270" y="238" width="116" height="20" rx="10" fill="#FFFFFF"/>
+  <rect x="270" y="288" width="138" height="20" rx="10" fill="#FFFFFF"/>
+  <rect x="270" y="338" width="138" height="20" rx="10" fill="#FFFFFF"/>
+</svg>
