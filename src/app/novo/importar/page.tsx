@@ -1,10 +1,13 @@
 "use client";
 
 import { ChangeEvent, DragEvent, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 export default function ImportResumePage() {
+  const router = useRouter();
+
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [file, setFile] = useState<File | null>(null);
@@ -67,9 +70,16 @@ export default function ImportResumePage() {
     return `${mb.toFixed(2)} MB`;
   }
 
+  function continueFlow() {
+    if (!file) {
+      return;
+    }
+
+    router.push("/novo/vaga");
+  }
+
   return (
     <main className="min-h-screen bg-[#F7F7F5] text-[#181818]">
-      {/* Header */}
       <header className="border-b border-[#DEDEDA] bg-white">
         <div className="mx-auto flex h-20 max-w-[1280px] items-center justify-between px-6 lg:px-10">
           <a href="/">
@@ -80,55 +90,62 @@ export default function ImportResumePage() {
             />
           </a>
 
-          <button
-            type="button"
-            className="h-10 rounded-lg border border-[#D6D6D1] bg-white px-4 text-sm font-medium transition hover:bg-[#F2F2EF]"
+          <a
+            href="/"
+            className="inline-flex h-10 items-center rounded-lg border border-[#D6D6D1] bg-white px-4 text-sm font-medium transition hover:bg-[#F2F2EF]"
           >
             Sair
-          </button>
+          </a>
         </div>
       </header>
 
-      {/* Progress */}
       <div className="border-b border-[#DEDEDA] bg-white">
         <div className="mx-auto max-w-[1040px] px-6 py-6">
-          <ol className="grid grid-cols-4 gap-2">
+          <ol className="grid grid-cols-4 gap-3">
             <li>
               <div className="h-1 rounded-full bg-[#E9426B]" />
+
               <div className="mt-3">
                 <span className="text-xs font-semibold text-[#E9426B]">
                   01
                 </span>
+
                 <p className="mt-1 text-sm font-semibold">Currículo</p>
               </div>
             </li>
 
             <li>
               <div className="h-1 rounded-full bg-[#DEDEDA]" />
+
               <div className="mt-3">
                 <span className="text-xs font-semibold text-[#A0A09A]">
                   02
                 </span>
+
                 <p className="mt-1 text-sm text-[#777772]">Vaga</p>
               </div>
             </li>
 
             <li>
               <div className="h-1 rounded-full bg-[#DEDEDA]" />
+
               <div className="mt-3">
                 <span className="text-xs font-semibold text-[#A0A09A]">
                   03
                 </span>
+
                 <p className="mt-1 text-sm text-[#777772]">Revisão</p>
               </div>
             </li>
 
             <li>
               <div className="h-1 rounded-full bg-[#DEDEDA]" />
+
               <div className="mt-3">
                 <span className="text-xs font-semibold text-[#A0A09A]">
                   04
                 </span>
+
                 <p className="mt-1 text-sm text-[#777772]">Resultado</p>
               </div>
             </li>
@@ -136,7 +153,6 @@ export default function ImportResumePage() {
         </div>
       </div>
 
-      {/* Content */}
       <div className="mx-auto max-w-[1040px] px-6 py-12 lg:py-16">
         <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_300px]">
           <section>
@@ -155,7 +171,6 @@ export default function ImportResumePage() {
               </p>
             </div>
 
-            {/* Upload */}
             <div className="mt-10">
               {!file ? (
                 <div
@@ -207,7 +222,7 @@ export default function ImportResumePage() {
                   </button>
 
                   <p className="mt-5 text-xs text-[#969691]">
-                    PDF • máximo de 5 MB
+                    PDF · máximo de 5 MB
                   </p>
                 </div>
               ) : (
@@ -219,6 +234,7 @@ export default function ImportResumePage() {
 
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-semibold">{file.name}</p>
+
                       <p className="mt-1 text-sm text-[#777772]">
                         {formatFileSize(file.size)}
                       </p>
@@ -235,6 +251,7 @@ export default function ImportResumePage() {
 
                   <div className="mt-6 flex items-center gap-2 rounded-lg bg-[#F1F7F3] px-4 py-3">
                     <span className="text-[#247A52]">✓</span>
+
                     <p className="text-sm font-medium text-[#247A52]">
                       Arquivo pronto para continuar
                     </p>
@@ -244,11 +261,12 @@ export default function ImportResumePage() {
 
               {error && (
                 <div className="mt-3 rounded-lg bg-[#FFF0F0] px-4 py-3">
-                  <p className="text-sm font-medium text-[#B83A3A]">{error}</p>
+                  <p className="text-sm font-medium text-[#B83A3A]">
+                    {error}
+                  </p>
                 </div>
               )}
 
-              {/* Footer actions */}
               <div className="mt-8 flex items-center justify-between border-t border-[#DEDEDA] pt-6">
                 <a
                   href="/"
@@ -260,6 +278,7 @@ export default function ImportResumePage() {
                 <button
                   type="button"
                   disabled={!file}
+                  onClick={continueFlow}
                   className="h-11 rounded-lg bg-[#181818] px-6 text-sm font-semibold text-white transition enabled:hover:bg-black disabled:cursor-not-allowed disabled:bg-[#CBCBC5] disabled:text-[#777772]"
                 >
                   Continuar
@@ -268,29 +287,28 @@ export default function ImportResumePage() {
             </div>
           </section>
 
-          {/* Help */}
           <aside className="h-fit rounded-xl border border-[#DEDEDA] bg-white p-5">
             <p className="text-sm font-semibold">Como exportar do LinkedIn</p>
 
             <ol className="mt-4 space-y-4 text-sm leading-6 text-[#686864]">
               <li className="flex gap-3">
                 <span className="font-semibold text-[#181818]">1.</span>
-                Abra seu perfil no LinkedIn.
+                <span>Abra seu perfil no LinkedIn.</span>
               </li>
 
               <li className="flex gap-3">
                 <span className="font-semibold text-[#181818]">2.</span>
-                Acesse as opções do perfil.
+                <span>Acesse as opções do perfil.</span>
               </li>
 
               <li className="flex gap-3">
                 <span className="font-semibold text-[#181818]">3.</span>
-                Escolha salvar ou exportar como PDF.
+                <span>Escolha salvar ou exportar como PDF.</span>
               </li>
 
               <li className="flex gap-3">
                 <span className="font-semibold text-[#181818]">4.</span>
-                Envie o arquivo nesta página.
+                <span>Envie o arquivo nesta página.</span>
               </li>
             </ol>
 

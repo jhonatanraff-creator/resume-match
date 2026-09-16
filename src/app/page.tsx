@@ -7,25 +7,24 @@ const steps = [
   },
   {
     number: "02",
-    title: "Cole a descrição da vaga",
+    title: "Adicione a vaga",
     description:
-      "Use o anúncio completo para entendermos responsabilidades, requisitos e contexto.",
+      "Cole a descrição completa para identificar responsabilidades e requisitos.",
   },
   {
     number: "03",
-    title: "Revise antes de baixar",
+    title: "Revise e exporte",
     description:
-      "Compare as sugestões, ajuste o conteúdo e gere a versão final em PDF.",
+      "Confira as sugestões, ajuste o conteúdo e gere a versão final em PDF.",
   },
 ];
 
 export default function Home() {
   return (
     <main className="min-h-screen bg-[#F7F7F5] text-[#181818]">
-      {/* Header */}
       <header className="border-b border-[#DEDEDA] bg-white">
         <div className="mx-auto flex h-20 max-w-[1280px] items-center justify-between px-6 lg:px-10">
-          <a href="#" aria-label="Resume Match">
+          <a href="/" aria-label="Resume Match">
             <img
               src="/brand/resume-match-logo-horizontal.svg"
               alt="Resume Match"
@@ -34,10 +33,7 @@ export default function Home() {
           </a>
 
           <nav className="hidden items-center gap-8 text-sm md:flex">
-            <a
-              href="#"
-              className="font-medium text-[#181818]"
-            >
+            <a href="/" className="font-medium text-[#181818]">
               Início
             </a>
 
@@ -49,10 +45,10 @@ export default function Home() {
             </a>
 
             <a
-              href="#historico"
+              href="#como-funciona"
               className="text-[#686864] transition hover:text-[#181818]"
             >
-              Histórico
+              Como funciona
             </a>
           </nav>
 
@@ -62,7 +58,6 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Hero */}
       <section className="border-b border-[#DEDEDA]">
         <div className="mx-auto grid max-w-[1280px] gap-14 px-6 py-16 lg:grid-cols-[1fr_440px] lg:px-10 lg:py-24">
           <div className="flex flex-col justify-center">
@@ -82,23 +77,22 @@ export default function Home() {
 
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <a
-                href="#comecar"
+                href="/novo/importar"
                 className="inline-flex h-12 items-center justify-center rounded-lg bg-[#181818] px-6 text-sm font-semibold text-white transition hover:bg-black"
               >
                 Criar currículo para uma vaga
               </a>
 
-              <button className="h-12 rounded-lg border border-[#D6D6D1] bg-white px-6 text-sm font-semibold transition hover:bg-[#F2F2EF]">
+              <a
+                href="#como-funciona"
+                className="inline-flex h-12 items-center justify-center rounded-lg border border-[#D6D6D1] bg-white px-6 text-sm font-semibold transition hover:bg-[#F2F2EF]"
+              >
                 Ver como funciona
-              </button>
+              </a>
             </div>
           </div>
 
-          {/* Main task card */}
-          <aside
-            id="comecar"
-            className="rounded-2xl border border-[#DEDEDA] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.03)] sm:p-8"
-          >
+          <aside className="rounded-2xl border border-[#DEDEDA] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.03)] sm:p-8">
             <div className="mb-8">
               <p className="text-sm font-medium text-[#686864]">
                 Nova adaptação
@@ -109,11 +103,14 @@ export default function Home() {
               </h2>
 
               <p className="mt-3 text-sm leading-6 text-[#686864]">
-                Escolha de onde vamos obter suas informações profissionais.
+                Escolha como deseja adicionar suas informações profissionais.
               </p>
             </div>
 
-            <button className="group flex w-full items-center gap-4 rounded-xl border border-[#D6D6D1] p-4 text-left transition hover:border-[#AFAFAA] hover:bg-[#FAFAF8]">
+            <a
+              href="/novo/importar"
+              className="group flex w-full items-center gap-4 rounded-xl border border-[#D6D6D1] p-4 text-left transition hover:border-[#AFAFAA] hover:bg-[#FAFAF8]"
+            >
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#FFE4EB] text-lg font-semibold text-[#E9426B]">
                 ↑
               </span>
@@ -134,7 +131,7 @@ export default function Home() {
               >
                 →
               </span>
-            </button>
+            </a>
 
             <button className="group mt-3 flex w-full items-center gap-4 rounded-xl border border-[#D6D6D1] p-4 text-left transition hover:border-[#AFAFAA] hover:bg-[#FAFAF8]">
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#EEEEEB] text-lg font-semibold">
@@ -161,16 +158,18 @@ export default function Home() {
 
             <div className="mt-7 border-t border-[#E7E7E3] pt-5">
               <p className="text-xs leading-5 text-[#858580]">
-                Seus dados continuam editáveis antes da geração do currículo
-                final.
+                Você poderá revisar suas informações antes de gerar qualquer
+                currículo.
               </p>
             </div>
           </aside>
         </div>
       </section>
 
-      {/* How it works */}
-      <section className="mx-auto max-w-[1280px] px-6 py-16 lg:px-10 lg:py-20">
+      <section
+        id="como-funciona"
+        className="mx-auto max-w-[1280px] px-6 py-16 lg:px-10 lg:py-20"
+      >
         <div className="max-w-xl">
           <p className="text-sm font-semibold text-[#686864]">
             Como funciona
@@ -179,6 +178,11 @@ export default function Home() {
           <h2 className="mt-3 text-3xl font-semibold tracking-[-0.03em] sm:text-4xl">
             Um fluxo simples, com você no controle.
           </h2>
+
+          <p className="mt-4 text-base leading-7 text-[#686864]">
+            O Resume Match organiza o processo sem esconder o que está sendo
+            alterado.
+          </p>
         </div>
 
         <div className="mt-10 grid border-y border-[#DEDEDA] md:grid-cols-3">
@@ -186,16 +190,16 @@ export default function Home() {
             <article
               key={step.number}
               className={`py-8 md:px-8 ${
-                index !== 0 ? "border-t border-[#DEDEDA] md:border-l md:border-t-0" : ""
+                index !== 0
+                  ? "border-t border-[#DEDEDA] md:border-l md:border-t-0"
+                  : ""
               }`}
             >
               <p className="text-xs font-semibold tracking-[0.12em] text-[#A0A09A]">
                 {step.number}
               </p>
 
-              <h3 className="mt-5 text-lg font-semibold">
-                {step.title}
-              </h3>
+              <h3 className="mt-5 text-lg font-semibold">{step.title}</h3>
 
               <p className="mt-3 max-w-sm text-sm leading-6 text-[#686864]">
                 {step.description}
@@ -205,7 +209,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Resume area */}
       <section
         id="curriculos"
         className="border-t border-[#DEDEDA] bg-white"
@@ -220,14 +223,21 @@ export default function Home() {
               <h2 className="mt-3 text-3xl font-semibold tracking-[-0.03em]">
                 Currículo-base
               </h2>
+
+              <p className="mt-3 max-w-lg text-sm leading-6 text-[#686864]">
+                Guarde sua trajetória profissional uma vez e reutilize essas
+                informações em novas candidaturas.
+              </p>
             </div>
 
-            <button className="h-10 self-start rounded-lg border border-[#D6D6D1] px-4 text-sm font-semibold transition hover:bg-[#F2F2EF] sm:self-auto">
-              Criar currículo
-            </button>
+            <a
+              href="/novo/importar"
+              className="inline-flex h-10 self-start items-center justify-center rounded-lg border border-[#D6D6D1] px-4 text-sm font-semibold transition hover:bg-[#F2F2EF] sm:self-auto"
+            >
+              Adicionar currículo
+            </a>
           </div>
 
-          {/* Empty state */}
           <div className="mt-8 flex min-h-64 flex-col items-center justify-center rounded-xl border border-dashed border-[#CBCBC5] bg-[#FAFAF8] px-6 text-center">
             <img
               src="/brand/resume-match-icon-monochrome.svg"
@@ -240,39 +250,44 @@ export default function Home() {
             </h3>
 
             <p className="mt-2 max-w-sm text-sm leading-6 text-[#777772]">
-              Depois de adicionar seu primeiro currículo, ele ficará disponível
-              aqui para novas candidaturas.
+              Adicione seu primeiro currículo para começar a criar versões
+              direcionadas às vagas.
             </p>
 
-            <button className="mt-6 h-10 rounded-lg bg-[#181818] px-4 text-sm font-semibold text-white transition hover:bg-black">
+            <a
+              href="/novo/importar"
+              className="mt-6 inline-flex h-10 items-center justify-center rounded-lg bg-[#181818] px-4 text-sm font-semibold text-white transition hover:bg-black"
+            >
               Adicionar currículo
-            </button>
+            </a>
           </div>
         </div>
       </section>
 
-      {/* Trust */}
       <section className="border-t border-[#DEDEDA]">
         <div className="mx-auto grid max-w-[1280px] gap-10 px-6 py-14 lg:grid-cols-3 lg:px-10">
           <div>
             <p className="text-sm font-semibold">Sem inventar informações</p>
+
             <p className="mt-2 text-sm leading-6 text-[#686864]">
-              O conteúdo parte sempre da sua experiência profissional real.
+              As sugestões usam somente informações presentes no seu histórico
+              profissional.
             </p>
           </div>
 
           <div>
             <p className="text-sm font-semibold">Você revisa tudo</p>
+
             <p className="mt-2 text-sm leading-6 text-[#686864]">
-              Sugestões podem ser aceitas, ajustadas ou descartadas antes da
-              exportação.
+              Confira as alterações antes de aceitar qualquer sugestão.
             </p>
           </div>
 
           <div>
             <p className="text-sm font-semibold">Pronto para candidatura</p>
+
             <p className="mt-2 text-sm leading-6 text-[#686864]">
-              Gere uma versão em texto e um PDF leve para enviar às empresas.
+              Copie o conteúdo ou gere um PDF leve para enviar à empresa.
             </p>
           </div>
         </div>
@@ -286,7 +301,7 @@ export default function Home() {
             className="h-7 w-auto opacity-70"
           />
 
-          <span>Seu currículo, direcionado para cada oportunidade.</span>
+          <span>Seu currículo direcionado para cada oportunidade.</span>
         </div>
       </footer>
     </main>
