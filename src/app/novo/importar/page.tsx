@@ -5,14 +5,22 @@ import { useRouter } from "next/navigation";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
+type ParsedResume = {
+  fileName: string;
+  fileSize: number;
+  pages: number;
+  text: string;
+  importedAt: string;
+};
+
 export default function ImportResumePage() {
   const router = useRouter();
-
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState("");
   const [isDragging, setIsDragging] = useState(false);
+  const [isParsing, setIsParsing] = useState(false);
 
   function validateFile(selectedFile: File) {
     setError("");
@@ -66,16 +74,66 @@ export default function ImportResumePage() {
 
   function formatFileSize(bytes: number) {
     const mb = bytes / 1024 / 1024;
-
     return `${mb.toFixed(2)} MB`;
   }
 
-  function continueFlow() {
-    if (!file) {
+  async function continueFlow() {
+    if (!file || isParsing) {
       return;
     }
 
-    router.push("/novo/vaga");
+    setIsParsing(true);
+    setError("");
+
+    const minimumLoadingTime = new Promise((resolve) =>
+      window.setTimeout(resolve, 700),
+    );
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const request = fetch("/api/parse-pdf", {
+        method: "POST",
+        body: formData,
+      });
+
+      const [response] = await Promise.all([
+        request,
+        minimumLoadingTime,
+      ]);
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error || "Não foi possível processar o currículo.",
+        );
+      }
+
+      const resume: ParsedResume = {
+        fileName: data.fileName,
+        fileSize: data.fileSize,
+        pages: data.pages,
+        text: data.text,
+        importedAt: new Date().toISOString(),
+      };
+
+      localStorage.setItem(
+        "resume-match-base-resume",
+        JSON.stringify(resume),
+      );
+
+      router.push("/novo/revisar-curriculo");
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Não foi possível processar o currículo.",
+      );
+    } finally {
+      setIsParsing(false);
+    }
   }
 
   return (
@@ -110,7 +168,9 @@ export default function ImportResumePage() {
                   01
                 </span>
 
-                <p className="mt-1 text-sm font-semibold">Currículo</p>
+                <p className="mt-1 text-sm font-semibold">
+                  Currículo
+                </p>
               </div>
             </li>
 
@@ -122,7 +182,9 @@ export default function ImportResumePage() {
                   02
                 </span>
 
-                <p className="mt-1 text-sm text-[#777772]">Vaga</p>
+                <p className="mt-1 text-sm text-[#777772]">
+                  Vagas
+                </p>
               </div>
             </li>
 
@@ -134,7 +196,9 @@ export default function ImportResumePage() {
                   03
                 </span>
 
-                <p className="mt-1 text-sm text-[#777772]">Revisão</p>
+                <p className="mt-1 text-sm text-[#777772]">
+                  Revisão
+                </p>
               </div>
             </li>
 
@@ -146,7 +210,9 @@ export default function ImportResumePage() {
                   04
                 </span>
 
-                <p className="mt-1 text-sm text-[#777772]">Resultado</p>
+                <p className="mt-1 text-sm text-[#777772]">
+                  Resultados
+                </p>
               </div>
             </li>
           </ol>
@@ -158,7 +224,7 @@ export default function ImportResumePage() {
           <section>
             <div className="max-w-[650px]">
               <p className="text-sm font-semibold text-[#E9426B]">
-                Etapa 1 de 4
+                Currículo-base
               </p>
 
               <h1 className="mt-3 text-4xl font-semibold tracking-[-0.035em] sm:text-5xl">
@@ -166,8 +232,8 @@ export default function ImportResumePage() {
               </h1>
 
               <p className="mt-5 max-w-xl text-base leading-7 text-[#686864]">
-                Envie o currículo exportado pelo LinkedIn. Vamos usar essas
-                informações como base para criar versões direcionadas às vagas.
+                Envie seu currículo em PDF. Vamos ler o conteúdo e mostrar
+                tudo para você revisar antes de usá-lo nas candidaturas.
               </p>
             </div>
 
@@ -233,7 +299,9 @@ export default function ImportResumePage() {
                     </div>
 
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-semibold">{file.name}</p>
+                      <p className="truncate font-semibold">
+                        {file.name}
+                      </p>
 
                       <p className="mt-1 text-sm text-[#777772]">
                         {formatFileSize(file.size)}
@@ -242,8 +310,9 @@ export default function ImportResumePage() {
 
                     <button
                       type="button"
+                      disabled={isParsing}
                       onClick={removeFile}
-                      className="rounded-lg px-3 py-2 text-sm font-medium text-[#686864] transition hover:bg-[#F2F2EF] hover:text-[#181818]"
+                      className="rounded-lg px-3 py-2 text-sm font-medium text-[#686864] transition hover:bg-[#F2F2EF] hover:text-[#181818] disabled:opacity-40"
                     >
                       Remover
                     </button>
@@ -253,7 +322,7 @@ export default function ImportResumePage() {
                     <span className="text-[#247A52]">✓</span>
 
                     <p className="text-sm font-medium text-[#247A52]">
-                      Arquivo pronto para continuar
+                      Arquivo pronto para leitura
                     </p>
                   </div>
                 </div>
@@ -277,45 +346,30 @@ export default function ImportResumePage() {
 
                 <button
                   type="button"
-                  disabled={!file}
+                  disabled={!file || isParsing}
                   onClick={continueFlow}
-                  className="h-11 rounded-lg bg-[#181818] px-6 text-sm font-semibold text-white transition enabled:hover:bg-black disabled:cursor-not-allowed disabled:bg-[#CBCBC5] disabled:text-[#777772]"
+                  className="h-11 min-w-[150px] rounded-lg bg-[#181818] px-6 text-sm font-semibold text-white transition enabled:hover:bg-black disabled:cursor-not-allowed disabled:bg-[#CBCBC5] disabled:text-[#777772]"
                 >
-                  Continuar
+                  {isParsing ? "Lendo PDF..." : "Continuar"}
                 </button>
               </div>
             </div>
           </section>
 
           <aside className="h-fit rounded-xl border border-[#DEDEDA] bg-white p-5">
-            <p className="text-sm font-semibold">Como exportar do LinkedIn</p>
+            <p className="text-sm font-semibold">
+              Seu currículo-base
+            </p>
 
-            <ol className="mt-4 space-y-4 text-sm leading-6 text-[#686864]">
-              <li className="flex gap-3">
-                <span className="font-semibold text-[#181818]">1.</span>
-                <span>Abra seu perfil no LinkedIn.</span>
-              </li>
+            <p className="mt-3 text-sm leading-6 text-[#686864]">
+              Depois da leitura, você poderá conferir e corrigir o conteúdo
+              antes de começar a adicionar vagas.
+            </p>
 
-              <li className="flex gap-3">
-                <span className="font-semibold text-[#181818]">2.</span>
-                <span>Acesse as opções do perfil.</span>
-              </li>
-
-              <li className="flex gap-3">
-                <span className="font-semibold text-[#181818]">3.</span>
-                <span>Escolha salvar ou exportar como PDF.</span>
-              </li>
-
-              <li className="flex gap-3">
-                <span className="font-semibold text-[#181818]">4.</span>
-                <span>Envie o arquivo nesta página.</span>
-              </li>
-            </ol>
-
-            <div className="mt-6 border-t border-[#E7E7E3] pt-5">
+            <div className="mt-5 border-t border-[#E7E7E3] pt-5">
               <p className="text-xs leading-5 text-[#858580]">
-                Você poderá revisar as informações importadas antes de
-                utilizá-las.
+                Depois de aprovado, este currículo ficará como sua fonte
+                principal para novas candidaturas.
               </p>
             </div>
           </aside>

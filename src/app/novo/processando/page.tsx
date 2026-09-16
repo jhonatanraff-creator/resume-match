@@ -10,10 +10,15 @@ type JobDraft = {
   description: string;
 };
 
-type JobProgress = {
-  job: JobDraft;
-  progress: number;
-  stage: number;
+type StoredResult = {
+  id: string;
+  roundId: string;
+  title: string;
+  company: string;
+  description: string;
+  compatibility: number;
+  status: string;
+  createdAt: string;
 };
 
 const stages = [
@@ -104,25 +109,54 @@ export default function ProcessingPage() {
 
     setFinished(true);
 
-    const results = jobs.map((job) => ({
-      id: job.id,
+    const createdAt = new Date().toISOString();
+    const roundId = `round-${Date.now()}`;
+
+    const newResults: StoredResult[] = jobs.map((job) => ({
+      id: `${roundId}-${job.id}`,
+      roundId,
       title: job.title || "Vaga sem título",
       company: job.company,
       description: job.description,
       compatibility: Math.floor(Math.random() * 16) + 80,
       status: "ready",
+      createdAt,
     }));
 
+    const existingHistory = localStorage.getItem("resume-match-history");
+
+    let history: StoredResult[] = [];
+
+    if (existingHistory) {
+      try {
+        history = JSON.parse(existingHistory) as StoredResult[];
+      } catch {
+        history = [];
+      }
+    }
+
+    const updatedHistory = [...newResults, ...history];
+
     localStorage.setItem(
-      "resume-match-results",
-      JSON.stringify(results),
+      "resume-match-history",
+      JSON.stringify(updatedHistory),
     );
 
-    const timeout = window.setTimeout(() => {
+    localStorage.setItem(
+      "resume-match-current-round",
+      JSON.stringify({
+        roundId,
+        createdAt,
+        resultIds: newResults.map((result) => result.id),
+      }),
+    );
+
+    localStorage.removeItem("resume-match-jobs");
+    localStorage.removeItem("resume-match-review");
+
+    window.setTimeout(() => {
       router.push("/resultados");
     }, 1400);
-
-    return () => window.clearTimeout(timeout);
   }, [allFinished, finished, jobs, router]);
 
   function getStage(progressValue: number) {
@@ -138,6 +172,16 @@ export default function ProcessingPage() {
   const completedJobs = jobs.filter(
     (job) => (progress[job.id] ?? 0) >= 100,
   ).length;
+
+  const totalProgress =
+    jobs.length === 0
+      ? 0
+      : Math.round(
+          Object.values(progress).reduce(
+            (total, value) => total + value,
+            0,
+          ) / jobs.length,
+        );
 
   return (
     <main className="min-h-screen bg-[#F7F7F5] text-[#181818]">
@@ -177,7 +221,9 @@ export default function ProcessingPage() {
 
             <li>
               <div className="h-1 rounded-full bg-[#E9426B]" />
-              <p className="mt-3 text-sm font-semibold">Resultados</p>
+              <p className="mt-3 text-sm font-semibold">
+                Resultados
+              </p>
             </li>
           </ol>
         </div>
@@ -195,7 +241,7 @@ export default function ProcessingPage() {
 
           <p className="mt-5 text-base leading-7 text-[#686864]">
             Cada vaga é analisada separadamente usando o mesmo currículo-base.
-            Você poderá revisar todos os resultados antes de baixar os PDFs.
+            Os resultados desta rodada serão adicionados ao seu histórico.
           </p>
         </div>
 
@@ -212,14 +258,7 @@ export default function ProcessingPage() {
             </div>
 
             <span className="text-sm font-semibold">
-              {jobs.length === 0
-                ? "0%"
-                : `${Math.round(
-                    Object.values(progress).reduce(
-                      (total, value) => total + value,
-                      0,
-                    ) / jobs.length,
-                  )}%`}
+              {totalProgress}%
             </span>
           </div>
 
@@ -294,14 +333,10 @@ export default function ProcessingPage() {
         </div>
 
         <div className="mt-6 rounded-lg border border-[#DEDEDA] bg-white px-5 py-4">
-          <div className="flex gap-3">
-            <span className="text-[#686864]">i</span>
-
-            <p className="text-xs leading-5 text-[#686864]">
-              Nesta versão de teste, o processamento é simulado. Nenhuma API de
-              inteligência artificial está sendo utilizada ainda.
-            </p>
-          </div>
+          <p className="text-xs leading-5 text-[#686864]">
+            Nesta versão de teste, o processamento é simulado. Nenhuma API de
+            inteligência artificial está sendo utilizada ainda.
+          </p>
         </div>
 
         {allFinished && (
