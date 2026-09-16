@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { generateResumePdf } from "@/lib/generate-resume-pdf";
 
 type Result = {
   id: string;
@@ -12,8 +13,6 @@ type Result = {
   compatibility: number;
   status: string;
   createdAt: string;
-
-  // Resultados novos possuem estes campos.
   resumeText?: string;
   sourceResumeFile?: string;
 };
@@ -23,12 +22,36 @@ export default function ResultsPage() {
 
   const [results, setResults] = useState<Result[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [currentRoundId, setCurrentRoundId] = useState<string | null>(null);
+
+  const [expandedId, setExpandedId] = useState<string | null>(
+    null,
+  );
+
+  const [copiedId, setCopiedId] = useState<string | null>(
+    null,
+  );
+
+  const [downloadingId, setDownloadingId] = useState<
+    string | null
+  >(null);
+
+  const [downloadedId, setDownloadedId] = useState<
+    string | null
+  >(null);
+
+  const [downloadErrorId, setDownloadErrorId] = useState<
+    string | null
+  >(null);
+
+  const [currentRoundId, setCurrentRoundId] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
-    const savedHistory = localStorage.getItem("resume-match-history");
+    const savedHistory = localStorage.getItem(
+      "resume-match-history",
+    );
+
     const savedRound = localStorage.getItem(
       "resume-match-current-round",
     );
@@ -103,6 +126,50 @@ export default function ResultsPage() {
     }
   }
 
+  async function downloadPdf(result: Result) {
+    if (!result.resumeText?.trim()) {
+      setDownloadErrorId(result.id);
+
+      window.setTimeout(() => {
+        setDownloadErrorId(null);
+      }, 2500);
+
+      return;
+    }
+
+    setDownloadingId(result.id);
+    setDownloadedId(null);
+    setDownloadErrorId(null);
+
+    try {
+      const generated = await generateResumePdf({
+        resumeText: result.resumeText,
+        jobTitle: result.title,
+        company: result.company,
+      });
+
+      console.log(
+        `PDF gerado: ${generated.fileName} (${generated.size} bytes)`,
+      );
+
+      setDownloadedId(result.id);
+
+      window.setTimeout(() => {
+        setDownloadedId(null);
+      }, 2200);
+    } catch (error) {
+      console.error("Erro ao gerar PDF:", error);
+
+      setDownloadErrorId(result.id);
+
+      window.setTimeout(() => {
+        setDownloadErrorId(null);
+      }, 2500);
+    } finally {
+      setDownloadingId(null);
+    }
+  }
+
   function formatDate(date: string) {
     if (!date) {
       return "";
@@ -119,7 +186,19 @@ export default function ResultsPage() {
 
   function renderResult(result: Result) {
     const expanded = expandedId === result.id;
-    const hasRealResume = Boolean(result.resumeText?.trim());
+
+    const hasRealResume = Boolean(
+      result.resumeText?.trim(),
+    );
+
+    const isDownloading =
+      downloadingId === result.id;
+
+    const wasDownloaded =
+      downloadedId === result.id;
+
+    const hasDownloadError =
+      downloadErrorId === result.id;
 
     return (
       <article
@@ -170,6 +249,7 @@ export default function ResultsPage() {
               {result.sourceResumeFile && (
                 <div className="mt-4 flex items-center gap-2 text-xs text-[#777772]">
                   <span>Fonte:</span>
+
                   <span className="font-medium text-[#4F4F4B]">
                     {result.sourceResumeFile}
                   </span>
@@ -188,7 +268,9 @@ export default function ResultsPage() {
               }
               className="h-10 rounded-lg border border-[#D6D6D1] bg-white px-4 text-sm font-semibold transition hover:bg-[#F2F2EF]"
             >
-              {expanded ? "Fechar currículo" : "Ver currículo"}
+              {expanded
+                ? "Fechar currículo"
+                : "Ver currículo"}
             </button>
 
             <button
@@ -203,19 +285,43 @@ export default function ResultsPage() {
 
             <button
               type="button"
-              disabled
-              title="A geração de PDF será implementada na próxima etapa."
-              className="h-10 cursor-not-allowed rounded-lg bg-[#E4E4E0] px-4 text-sm font-semibold text-[#92928D]"
+              onClick={() => downloadPdf(result)}
+              disabled={
+                !hasRealResume || isDownloading
+              }
+              className="h-10 min-w-[120px] rounded-lg bg-[#181818] px-4 text-sm font-semibold text-white transition enabled:hover:bg-black disabled:cursor-not-allowed disabled:bg-[#D9D9D5] disabled:text-[#8D8D88]"
             >
-              Baixar PDF
+              {isDownloading
+                ? "Gerando..."
+                : wasDownloaded
+                  ? "PDF baixado"
+                  : "Baixar PDF"}
             </button>
           </div>
+
+          {hasDownloadError && (
+            <div className="mt-4 rounded-lg bg-[#FFF0F0] px-4 py-3">
+              <p className="text-xs font-medium leading-5 text-[#B83A3A]">
+                Não foi possível gerar este PDF. Tente
+                novamente.
+              </p>
+            </div>
+          )}
+
+          {!hasRealResume && (
+            <div className="mt-4 rounded-lg bg-[#FFF7E8] px-4 py-3">
+              <p className="text-xs leading-5 text-[#92651C]">
+                Esta candidatura foi criada antes da
+                importação real do currículo. Gere uma nova
+                candidatura para habilitar o PDF.
+              </p>
+            </div>
+          )}
         </div>
 
         {expanded && (
           <div className="border-t border-[#DEDEDA] bg-[#F3F3F0] p-4 sm:p-6">
             <div className="mx-auto max-w-[760px] overflow-hidden rounded-xl border border-[#DADAD5] bg-white shadow-[0_8px_30px_rgba(0,0,0,0.05)]">
-              {/* Resume preview header */}
               <div className="border-b border-[#E7E7E3] px-6 py-5 sm:px-8">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
@@ -242,27 +348,24 @@ export default function ResultsPage() {
                 </div>
               </div>
 
-              {/* Actual resume */}
               <div className="px-6 py-7 sm:px-8 sm:py-9">
                 <pre className="whitespace-pre-wrap break-words font-sans text-sm leading-7 text-[#353532]">
                   {getResumeText(result)}
                 </pre>
               </div>
 
-              {/* Disclaimer */}
               <div className="border-t border-[#E7E7E3] bg-[#FAFAF8] px-6 py-4 sm:px-8">
                 {hasRealResume ? (
                   <p className="text-xs leading-5 text-[#777772]">
-                    Esta versão usa o conteúdo real do seu
-                    currículo-base. A adaptação específica para esta
-                    vaga ainda será adicionada na etapa de
-                    inteligência artificial.
+                    Esta versão ainda reproduz seu
+                    currículo-base. Na próxima etapa, o
+                    conteúdo será adaptado especificamente
+                    para esta oportunidade.
                   </p>
                 ) : (
                   <p className="text-xs leading-5 text-[#B06A20]">
-                    Este item pertence a uma rodada criada antes da
-                    leitura real do currículo. Gere uma nova
-                    candidatura para testar o currículo-base.
+                    Este item foi criado antes da leitura
+                    real do currículo-base.
                   </p>
                 )}
               </div>
@@ -285,7 +388,6 @@ export default function ResultsPage() {
 
   return (
     <main className="min-h-screen bg-[#F7F7F5] text-[#181818]">
-      {/* Header */}
       <header className="border-b border-[#DEDEDA] bg-white">
         <div className="mx-auto flex h-20 max-w-[1280px] items-center justify-between px-6 lg:px-10">
           <a href="/">
@@ -319,7 +421,6 @@ export default function ResultsPage() {
       </header>
 
       <div className="mx-auto max-w-[1180px] px-6 py-12 lg:px-10 lg:py-16">
-        {/* Page heading */}
         <div className="flex flex-col gap-8 border-b border-[#DEDEDA] pb-10 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-[720px]">
             <p className="text-sm font-semibold text-[#686864]">
@@ -331,14 +432,17 @@ export default function ResultsPage() {
             </h1>
 
             <p className="mt-5 max-w-2xl text-base leading-7 text-[#686864]">
-              Cada vaga possui sua própria versão. Continue usando
-              seu currículo-base para novas oportunidades.
+              Cada vaga possui sua própria versão. Continue
+              usando seu currículo-base para novas
+              oportunidades.
             </p>
           </div>
 
           <button
             type="button"
-            onClick={() => router.push("/novo/vaga")}
+            onClick={() =>
+              router.push("/novo/vaga")
+            }
             className="h-11 self-start rounded-lg bg-[#181818] px-5 text-sm font-semibold text-white transition hover:bg-black lg:self-auto"
           >
             + Adicionar novas vagas
@@ -358,13 +462,15 @@ export default function ResultsPage() {
             </h2>
 
             <p className="mt-2 max-w-sm text-sm leading-6 text-[#777772]">
-              Adicione uma vaga para gerar sua primeira versão do
-              currículo.
+              Adicione uma vaga para gerar sua primeira
+              versão do currículo.
             </p>
 
             <button
               type="button"
-              onClick={() => router.push("/novo/vaga")}
+              onClick={() =>
+                router.push("/novo/vaga")
+              }
               className="mt-6 h-10 rounded-lg bg-[#181818] px-4 text-sm font-semibold text-white"
             >
               Adicionar vaga
@@ -372,7 +478,6 @@ export default function ResultsPage() {
           </div>
         ) : (
           <div className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1fr)_280px]">
-            {/* Results */}
             <section>
               {currentResults.length > 0 && (
                 <div>
@@ -393,7 +498,9 @@ export default function ResultsPage() {
                   </div>
 
                   <div className="space-y-4">
-                    {currentResults.map(renderResult)}
+                    {currentResults.map(
+                      renderResult,
+                    )}
                   </div>
                 </div>
               )}
@@ -423,13 +530,14 @@ export default function ResultsPage() {
                   </div>
 
                   <div className="space-y-4">
-                    {previousResults.map(renderResult)}
+                    {previousResults.map(
+                      renderResult,
+                    )}
                   </div>
                 </div>
               )}
             </section>
 
-            {/* Sidebar */}
             <aside className="h-fit space-y-4 lg:sticky lg:top-8">
               <div className="rounded-xl border border-[#DEDEDA] bg-white p-5">
                 <p className="text-sm font-semibold">
@@ -465,13 +573,15 @@ export default function ResultsPage() {
                 </p>
 
                 <p className="mt-2 text-sm leading-6 text-[#686864]">
-                  Adicione novas vagas sem importar seu currículo
-                  novamente.
+                  Adicione novas vagas sem importar seu
+                  currículo novamente.
                 </p>
 
                 <button
                   type="button"
-                  onClick={() => router.push("/novo/vaga")}
+                  onClick={() =>
+                    router.push("/novo/vaga")
+                  }
                   className="mt-5 h-10 w-full rounded-lg bg-[#181818] px-4 text-sm font-semibold text-white transition hover:bg-black"
                 >
                   Adicionar vagas
@@ -480,7 +590,9 @@ export default function ResultsPage() {
                 <button
                   type="button"
                   onClick={() =>
-                    router.push("/novo/revisar-curriculo")
+                    router.push(
+                      "/novo/revisar-curriculo",
+                    )
                   }
                   className="mt-2 h-10 w-full rounded-lg border border-[#D6D6D1] px-4 text-sm font-semibold transition hover:bg-[#F2F2EF]"
                 >
