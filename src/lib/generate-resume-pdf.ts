@@ -1,388 +1,923 @@
 import {
   PDFDocument,
   PDFFont,
+  PDFPage,
   StandardFonts,
   rgb,
 } from "pdf-lib";
 
-type GenerateResumePdfParams = {
-  resumeText: string;
-  jobTitle: string;
+import type {
+  AdaptedResume,
+  StructuredResume,
+} from "@/types/resume";
+
+type GenerateResumePdfInput = {
+  baseResume: StructuredResume;
+  adaptedResume?: AdaptedResume;
+  title: string;
   company?: string;
 };
 
 const PAGE_WIDTH = 595.28;
 const PAGE_HEIGHT = 841.89;
 
-const MARGIN_X = 52;
-const MARGIN_TOP = 54;
-const MARGIN_BOTTOM = 58;
+const MARGIN_X = 54;
+const MARGIN_TOP = 50;
+const MARGIN_BOTTOM = 44;
 
-const BODY_SIZE = 10;
-const BODY_LINE_HEIGHT = 14.5;
+const CONTENT_WIDTH =
+  PAGE_WIDTH - MARGIN_X * 2;
 
-function sanitizeFileName(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-zA-Z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .toLowerCase();
-}
+const BLACK = rgb(0, 0, 0);
 
-function replaceCommonUnicode(value: string) {
-  return value
-    .replace(/\u00A0/g, " ")
-    .replace(/[–—−]/g, "-")
-    .replace(/[“”„]/g, '"')
-    .replace(/[‘’‚]/g, "'")
-    .replace(/…/g, "...")
-    .replace(/[•◦▪●]/g, "-")
-    .replace(/[→➜➝]/g, "->")
-    .replace(/[←]/g, "<-")
-    .replace(/[✓✔]/g, "OK")
-    .replace(/[✕✖×]/g, "x")
-    .replace(/\u200B/g, "")
-    .replace(/\uFEFF/g, "");
-}
+const DARK_GRAY =
+  rgb(0.18, 0.18, 0.18);
 
-function makePdfSafe(
+const MEDIUM_GRAY =
+  rgb(0.42, 0.42, 0.42);
+
+const LIGHT_GRAY =
+  rgb(0.84, 0.84, 0.84);
+
+function normalizeText(
   value: string,
   font: PDFFont,
 ) {
-  const normalized = replaceCommonUnicode(value);
+  const replacements: Record<
+    string,
+    string
+  > = {
+    "–": "-",
+    "—": "-",
+    "−": "-",
+    "“": '"',
+    "”": '"',
+    "‘": "'",
+    "’": "'",
+    "•": "-",
+    "·": "-",
+    "→": "->",
+    "←": "<-",
+    "✓": "",
+    "✔": "",
+    "✕": "",
+    "×": "x",
+    "\u00A0": " ",
+  };
+
+  let text =
+    value ?? "";
+
+  for (
+    const [from, to]
+    of Object.entries(
+      replacements,
+    )
+  ) {
+    text =
+      text
+        .split(from)
+        .join(to);
+  }
 
   let safe = "";
 
-  for (const character of normalized) {
-    if (character === "\n") {
-      safe += character;
-      continue;
-    }
-
+  for (
+    const character
+    of text
+  ) {
     try {
-      font.encodeText(character);
+      font.encodeText(
+        character,
+      );
+
       safe += character;
     } catch {
-      safe += "";
+      safe += " ";
     }
   }
 
-  return safe;
+  return safe
+    .replace(
+      /[ \t]+/g,
+      " ",
+    )
+    .trim();
 }
 
-function wrapLine(
+function wrapText(
   text: string,
   font: PDFFont,
-  fontSize: number,
+  size: number,
   maxWidth: number,
 ) {
-  const words = text
-    .split(/\s+/)
-    .filter(Boolean);
+  const words =
+    normalizeText(
+      text,
+      font,
+    )
+      .split(/\s+/)
+      .filter(Boolean);
 
-  if (words.length === 0) {
+  if (!words.length) {
     return [""];
   }
 
-  const lines: string[] = [];
-  let currentLine = "";
+  const lines: string[] =
+    [];
 
-  for (const word of words) {
-    const candidate = currentLine
-      ? `${currentLine} ${word}`
-      : word;
+  let line = "";
 
-    const width = font.widthOfTextAtSize(
-      candidate,
-      fontSize,
-    );
+  for (
+    const word
+    of words
+  ) {
+    const candidate =
+      line
+        ? `${line} ${word}`
+        : word;
 
-    if (width <= maxWidth) {
-      currentLine = candidate;
-      continue;
-    }
+    const width =
+      font.widthOfTextAtSize(
+        candidate,
+        size,
+      );
 
-    if (currentLine) {
-      lines.push(currentLine);
-    }
-
-    // Evita quebrar o PDF caso exista uma URL ou palavra
-    // extremamente longa sem espaços.
     if (
-      font.widthOfTextAtSize(word, fontSize) >
-      maxWidth
+      width <= maxWidth
     ) {
-      let chunk = "";
-
-      for (const character of word) {
-        const testChunk = chunk + character;
-
-        if (
-          font.widthOfTextAtSize(
-            testChunk,
-            fontSize,
-          ) <= maxWidth
-        ) {
-          chunk = testChunk;
-        } else {
-          if (chunk) {
-            lines.push(chunk);
-          }
-
-          chunk = character;
-        }
+      line = candidate;
+    } else {
+      if (line) {
+        lines.push(line);
       }
 
-      currentLine = chunk;
-    } else {
-      currentLine = word;
+      line = word;
     }
   }
 
-  if (currentLine) {
-    lines.push(currentLine);
+  if (line) {
+    lines.push(line);
   }
 
   return lines;
 }
 
+function safeFilename(
+  text: string,
+) {
+  return text
+    .normalize("NFD")
+    .replace(
+      /[\u0300-\u036f]/g,
+      "",
+    )
+    .replace(
+      /[^a-zA-Z0-9]+/g,
+      "-",
+    )
+    .replace(
+      /^-+|-+$/g,
+      "",
+    )
+    .toLowerCase();
+}
+
+function downloadPdf(
+  bytes: Uint8Array,
+  filename: string,
+) {
+  const arrayBuffer =
+    new ArrayBuffer(
+      bytes.byteLength,
+    );
+
+  new Uint8Array(
+    arrayBuffer,
+  ).set(
+    bytes,
+  );
+
+  const blob =
+    new Blob(
+      [arrayBuffer],
+      {
+        type: "application/pdf",
+      },
+    );
+
+  const url =
+    URL.createObjectURL(
+      blob,
+    );
+
+  const anchor =
+    document.createElement(
+      "a",
+    );
+
+  anchor.href = url;
+  anchor.download =
+    filename;
+
+  document.body.appendChild(
+    anchor,
+  );
+
+  anchor.click();
+  anchor.remove();
+
+  URL.revokeObjectURL(
+    url,
+  );
+}
+
+function formatPeriod(
+  start?: string,
+  end?: string,
+  current?: boolean,
+) {
+  const parts: string[] =
+    [];
+
+  if (start) {
+    parts.push(start);
+  }
+
+  if (current) {
+    parts.push("Atual");
+  } else if (end) {
+    parts.push(end);
+  }
+
+  return parts.join(
+    " - ",
+  );
+}
+
 export async function generateResumePdf({
-  resumeText,
-  jobTitle,
+  baseResume,
+  adaptedResume,
+  title,
   company,
-}: GenerateResumePdfParams) {
-  const pdfDocument = await PDFDocument.create();
+}: GenerateResumePdfInput) {
+  const pdf =
+    await PDFDocument.create();
 
-  const regularFont = await pdfDocument.embedFont(
-    StandardFonts.Helvetica,
+  const regular =
+    await pdf.embedFont(
+      StandardFonts.Helvetica,
+    );
+
+  const bold =
+    await pdf.embedFont(
+      StandardFonts.HelveticaBold,
+    );
+
+  pdf.setTitle(
+    `Curriculo - ${baseResume.name}`,
   );
 
-  const boldFont = await pdfDocument.embedFont(
-    StandardFonts.HelveticaBold,
+  pdf.setSubject(
+    company
+      ? `Curriculo para ${title} - ${company}`
+      : `Curriculo para ${title}`,
   );
 
-  const safeResumeText = makePdfSafe(
-    resumeText,
-    regularFont,
+  pdf.setCreator(
+    baseResume.name,
   );
 
-  const safeJobTitle = makePdfSafe(
-    jobTitle,
-    boldFont,
+  pdf.setProducer(
+    baseResume.name,
   );
 
-  const safeCompany = company
-    ? makePdfSafe(company, regularFont)
-    : "";
+  const keywords =
+    adaptedResume
+      ?.supportedKeywords
+      ?.slice(0, 20) ??
+    [];
 
-  let page = pdfDocument.addPage([
-    PAGE_WIDTH,
-    PAGE_HEIGHT,
+  pdf.setKeywords([
+    "curriculo",
+    "resume",
+    title,
+    ...keywords,
   ]);
 
-  let y = PAGE_HEIGHT - MARGIN_TOP;
-
-  const contentWidth =
-    PAGE_WIDTH - MARGIN_X * 2;
-
-  function addPage() {
-    page = pdfDocument.addPage([
+  let page: PDFPage =
+    pdf.addPage([
       PAGE_WIDTH,
       PAGE_HEIGHT,
     ]);
 
-    y = PAGE_HEIGHT - MARGIN_TOP;
+  let y =
+    PAGE_HEIGHT -
+    MARGIN_TOP;
+
+  function newPage() {
+    page =
+      pdf.addPage([
+        PAGE_WIDTH,
+        PAGE_HEIGHT,
+      ]);
+
+    y =
+      PAGE_HEIGHT -
+      MARGIN_TOP;
   }
 
-  function ensureSpace(height: number) {
-    if (y - height < MARGIN_BOTTOM) {
-      addPage();
+  function ensureSpace(
+    height: number,
+  ) {
+    if (
+      y - height <
+      MARGIN_BOTTOM
+    ) {
+      newPage();
     }
   }
 
-  // Identificação discreta
-  page.drawText("RESUME MATCH", {
-    x: MARGIN_X,
-    y,
-    size: 8,
-    font: boldFont,
-    color: rgb(0.91, 0.26, 0.42),
-  });
+  function drawWrappedText({
+    text,
+    font = regular,
+    size = 9.7,
+    lineHeight = 14,
+    color = BLACK,
+    x = MARGIN_X,
+    maxWidth = CONTENT_WIDTH,
+  }: {
+    text: string;
+    font?: PDFFont;
+    size?: number;
+    lineHeight?: number;
+    color?: ReturnType<
+      typeof rgb
+    >;
+    x?: number;
+    maxWidth?: number;
+  }) {
+    const lines =
+      wrapText(
+        text,
+        font,
+        size,
+        maxWidth,
+      );
 
-  y -= 26;
+    for (
+      const line
+      of lines
+    ) {
+      ensureSpace(
+        lineHeight,
+      );
 
-  // Vaga
-  const titleLines = wrapLine(
-    safeJobTitle,
-    boldFont,
-    18,
-    contentWidth,
-  );
+      page.drawText(
+        line,
+        {
+          x,
+          y,
+          size,
+          font,
+          color,
+        },
+      );
 
-  for (const line of titleLines) {
-    ensureSpace(23);
-
-    page.drawText(line, {
-      x: MARGIN_X,
-      y,
-      size: 18,
-      font: boldFont,
-      color: rgb(0.09, 0.09, 0.09),
-    });
-
-    y -= 22;
+      y -= lineHeight;
+    }
   }
 
-  if (safeCompany.trim()) {
-    ensureSpace(20);
+  function drawSectionTitle(
+    label: string,
+  ) {
+    ensureSpace(42);
+
+    y -= 16;
 
     page.drawText(
-      `Versao para ${safeCompany}`,
+      normalizeText(
+        label.toUpperCase(),
+        bold,
+      ),
       {
         x: MARGIN_X,
         y,
         size: 10,
-        font: regularFont,
-        color: rgb(0.4, 0.4, 0.38),
+        font: bold,
+        color: BLACK,
       },
     );
 
-    y -= 24;
+    y -= 10;
+
+    page.drawLine({
+      start: {
+        x: MARGIN_X,
+        y,
+      },
+
+      end: {
+        x:
+          PAGE_WIDTH -
+          MARGIN_X,
+        y,
+      },
+
+      thickness: 0.7,
+      color: LIGHT_GRAY,
+    });
+
+    y -= 16;
   }
+
+  function drawBullet(
+    text: string,
+  ) {
+    const indent = 12;
+
+    const lines =
+      wrapText(
+        text,
+        regular,
+        9.5,
+        CONTENT_WIDTH -
+          indent,
+      );
+
+    ensureSpace(
+      lines.length * 13 +
+        4,
+    );
+
+    page.drawText(
+      "-",
+      {
+        x: MARGIN_X,
+        y,
+        size: 9.5,
+        font: regular,
+        color: BLACK,
+      },
+    );
+
+    for (
+      const line
+      of lines
+    ) {
+      page.drawText(
+        line,
+        {
+          x:
+            MARGIN_X +
+            indent,
+          y,
+          size: 9.5,
+          font: regular,
+          color: DARK_GRAY,
+        },
+      );
+
+      y -= 13;
+    }
+
+    y -= 3;
+  }
+
+  /*
+    CABEÇALHO
+  */
+
+  drawWrappedText({
+    text:
+      baseResume.name,
+    font: bold,
+    size: 22,
+    lineHeight: 25,
+    color: BLACK,
+  });
+
+  const finalHeadline =
+    adaptedResume
+      ?.headline ||
+    baseResume.headline;
+
+  if (finalHeadline) {
+    y -= 2;
+
+    drawWrappedText({
+      text:
+        finalHeadline,
+      font: bold,
+      size: 11,
+      lineHeight: 15,
+      color: DARK_GRAY,
+    });
+  }
+
+  const contactParts =
+    [
+      baseResume.contact.email,
+      baseResume.contact.phone,
+      baseResume.contact.location,
+    ].filter(
+      Boolean,
+    ) as string[];
+
+  if (
+    contactParts.length
+  ) {
+    y -= 8;
+
+    drawWrappedText({
+      text:
+        contactParts.join(
+          " | ",
+        ),
+      size: 8.8,
+      lineHeight: 12,
+      color: MEDIUM_GRAY,
+    });
+  }
+
+  const linkParts =
+    [
+      baseResume.contact.linkedin,
+      baseResume.contact.portfolio,
+    ].filter(
+      Boolean,
+    ) as string[];
+
+  if (
+    linkParts.length
+  ) {
+    drawWrappedText({
+      text:
+        linkParts.join(
+          " | ",
+        ),
+      size: 8.8,
+      lineHeight: 12,
+      color: MEDIUM_GRAY,
+    });
+  }
+
+  y -= 12;
 
   page.drawLine({
     start: {
       x: MARGIN_X,
       y,
     },
+
     end: {
-      x: PAGE_WIDTH - MARGIN_X,
+      x:
+        PAGE_WIDTH -
+        MARGIN_X,
       y,
     },
-    thickness: 0.7,
-    color: rgb(0.86, 0.86, 0.84),
+
+    thickness: 1,
+    color: BLACK,
   });
 
-  y -= 25;
+  y -= 10;
 
-  // Currículo
-  const paragraphs = safeResumeText
-    .replace(/\r/g, "")
-    .split("\n");
+  /*
+    RESUMO
+  */
 
-  for (const paragraph of paragraphs) {
-    const cleanParagraph =
-      paragraph.trim();
+  const finalSummary =
+    adaptedResume
+      ?.summary ||
+    baseResume.summary;
 
-    if (!cleanParagraph) {
-      y -= BODY_LINE_HEIGHT * 0.65;
-
-      if (y < MARGIN_BOTTOM) {
-        addPage();
-      }
-
-      continue;
-    }
-
-    const lines = wrapLine(
-      cleanParagraph,
-      regularFont,
-      BODY_SIZE,
-      contentWidth,
+  if (finalSummary) {
+    drawSectionTitle(
+      "Resumo",
     );
 
-    for (const line of lines) {
-      ensureSpace(BODY_LINE_HEIGHT);
-
-      page.drawText(line, {
-        x: MARGIN_X,
-        y,
-        size: BODY_SIZE,
-        font: regularFont,
-        color: rgb(0.18, 0.18, 0.17),
-      });
-
-      y -= BODY_LINE_HEIGHT;
-    }
-
-    y -= 3;
+    drawWrappedText({
+      text:
+        finalSummary,
+      size: 9.7,
+      lineHeight: 14,
+      color: DARK_GRAY,
+    });
   }
 
-  // Rodapé
-  const pages = pdfDocument.getPages();
+  /*
+    EXPERIÊNCIA
+  */
 
-  pages.forEach((pdfPage, index) => {
-    pdfPage.drawLine({
-      start: {
-        x: MARGIN_X,
-        y: 38,
-      },
-      end: {
-        x: PAGE_WIDTH - MARGIN_X,
-        y: 38,
-      },
-      thickness: 0.5,
-      color: rgb(0.88, 0.88, 0.86),
-    });
-
-    pdfPage.drawText(
-      `Resume Match  |  ${index + 1}/${pages.length}`,
-      {
-        x: MARGIN_X,
-        y: 22,
-        size: 7.5,
-        font: regularFont,
-        color: rgb(0.55, 0.55, 0.52),
-      },
+  if (
+    baseResume.experiences
+      .length
+  ) {
+    drawSectionTitle(
+      "Experiência",
     );
-  });
 
-  const pdfBytes = await pdfDocument.save({
-    useObjectStreams: true,
-  });
+    for (
+      const experience
+      of baseResume.experiences
+    ) {
+      ensureSpace(70);
 
-  const blob = new Blob(
-    [new Uint8Array(pdfBytes)],
-    {
-      type: "application/pdf",
+      const adapted =
+        adaptedResume
+          ?.experiences
+          .find(
+            (
+              item,
+            ) =>
+              item.experienceId ===
+              experience.id,
+          );
+
+      drawWrappedText({
+        text:
+          experience.role,
+        font: bold,
+        size: 11,
+        lineHeight: 14,
+        color: BLACK,
+      });
+
+      y -= 1;
+
+      drawWrappedText({
+        text:
+          experience.company,
+        font: bold,
+        size: 9.4,
+        lineHeight: 12,
+        color: DARK_GRAY,
+      });
+
+      const secondaryParts =
+        [
+          experience.location,
+          formatPeriod(
+            experience.startDate,
+            experience.endDate,
+            experience.current,
+          ),
+        ].filter(
+          Boolean,
+        ) as string[];
+
+      if (
+        secondaryParts.length
+      ) {
+        drawWrappedText({
+          text:
+            secondaryParts.join(
+              " | ",
+            ),
+          size: 8.6,
+          lineHeight: 11,
+          color: MEDIUM_GRAY,
+        });
+      }
+
+      y -= 7;
+
+      const bullets =
+        adapted
+          ?.adaptedBullets
+          ?.length
+          ? adapted.adaptedBullets
+          : experience.bullets;
+
+      for (
+        const bullet
+        of bullets
+      ) {
+        drawBullet(
+          bullet,
+        );
+      }
+
+      y -= 12;
+    }
+  }
+
+  /*
+    FORMAÇÃO
+  */
+
+  if (
+    baseResume.education
+      .length
+  ) {
+    drawSectionTitle(
+      "Formação",
+    );
+
+    for (
+      const education
+      of baseResume.education
+    ) {
+      ensureSpace(48);
+
+      drawWrappedText({
+        text:
+          education.course,
+        font: bold,
+        size: 10.5,
+        lineHeight: 14,
+        color: BLACK,
+      });
+
+      const institutionLine =
+        [
+          education.degree,
+          education.institution,
+        ]
+          .filter(Boolean)
+          .join(" | ");
+
+      if (institutionLine) {
+        drawWrappedText({
+          text:
+            institutionLine,
+          font: bold,
+          size: 9,
+          lineHeight: 12,
+          color: DARK_GRAY,
+        });
+      }
+
+      const educationPeriod =
+        formatPeriod(
+          education.startDate,
+          education.endDate,
+        );
+
+      if (educationPeriod) {
+        drawWrappedText({
+          text:
+            educationPeriod,
+          size: 8.6,
+          lineHeight: 11,
+          color: MEDIUM_GRAY,
+        });
+      }
+
+      y -= 10;
+    }
+  }
+
+  /*
+    CURSOS
+  */
+
+  if (
+    baseResume.courses.length
+  ) {
+    drawSectionTitle(
+      "Cursos",
+    );
+
+    for (
+      const course
+      of baseResume.courses
+    ) {
+      const primary =
+        [
+          course.name,
+          course.institution,
+        ]
+          .filter(Boolean)
+          .join(" | ");
+
+      if (primary) {
+        drawWrappedText({
+          text:
+            primary,
+          font: bold,
+          size: 9.3,
+          lineHeight: 12,
+          color: DARK_GRAY,
+        });
+      }
+
+      if (course.date) {
+        drawWrappedText({
+          text:
+            course.date,
+          size: 8.5,
+          lineHeight: 11,
+          color: MEDIUM_GRAY,
+        });
+      }
+
+      y -= 8;
+    }
+  }
+
+  /*
+    COMPETÊNCIAS
+  */
+
+  const finalSkills =
+    adaptedResume
+      ?.skills
+      ?.length
+      ? adaptedResume.skills
+      : baseResume.skills;
+
+  if (
+    finalSkills.length
+  ) {
+    drawSectionTitle(
+      "Competências",
+    );
+
+    drawWrappedText({
+      text:
+        finalSkills.join(
+          " | ",
+        ),
+      size: 9.3,
+      lineHeight: 14,
+      color: DARK_GRAY,
+    });
+  }
+
+  /*
+    IDIOMAS
+  */
+
+  if (
+    baseResume.languages
+      .length
+  ) {
+    drawSectionTitle(
+      "Idiomas",
+    );
+
+    drawWrappedText({
+      text:
+        baseResume.languages.join(
+          " | ",
+        ),
+      size: 9.3,
+      lineHeight: 14,
+      color: DARK_GRAY,
+    });
+  }
+
+  /*
+    Somente número da página.
+    Sem assinatura, logo, marca d'água
+    ou texto "gerado por".
+  */
+
+  const pages =
+    pdf.getPages();
+
+  pages.forEach(
+    (
+      currentPage,
+      index,
+    ) => {
+      const pageLabel =
+        `${index + 1}/${pages.length}`;
+
+      currentPage.drawText(
+        pageLabel,
+        {
+          x:
+            PAGE_WIDTH -
+            MARGIN_X -
+            18,
+          y: 20,
+          size: 7,
+          font: regular,
+          color: MEDIUM_GRAY,
+        },
+      );
     },
   );
 
-  const fileNameParts = [
-    "curriculo",
-    sanitizeFileName(jobTitle),
-  ];
+  const bytes =
+    await pdf.save();
 
-  if (company?.trim()) {
-    fileNameParts.push(
-      sanitizeFileName(company),
+  const filename =
+    safeFilename(
+      [
+        baseResume.name,
+        title,
+        company,
+      ]
+        .filter(Boolean)
+        .join("-"),
     );
-  }
 
-  const fileName =
-    `${fileNameParts.join("-")}.pdf`;
-
-  const url = URL.createObjectURL(blob);
-
-  const anchor =
-    document.createElement("a");
-
-  anchor.href = url;
-  anchor.download = fileName;
-
-  document.body.appendChild(anchor);
-
-  anchor.click();
-
-  anchor.remove();
-
-  window.setTimeout(() => {
-    URL.revokeObjectURL(url);
-  }, 1000);
-
-  return {
-    fileName,
-    size: blob.size,
-  };
+  downloadPdf(
+    bytes,
+    `${filename || "curriculo"}.pdf`,
+  );
 }

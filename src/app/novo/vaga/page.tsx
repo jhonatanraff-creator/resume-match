@@ -1,7 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import {
+  useEffect,
+  useState,
+} from "react";
+
+import {
+  useRouter,
+} from "next/navigation";
+
+import type {
+  StructuredResume,
+} from "@/types/resume";
 
 type JobDraft = {
   id: string;
@@ -10,368 +20,790 @@ type JobDraft = {
   description: string;
 };
 
-const initialJob: JobDraft = {
-  id: "job-1",
-  title: "",
-  company: "",
-  description: "",
-};
+function createEmptyJob(): JobDraft {
+  return {
+    id:
+      `job-${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2, 8)}`,
 
-export default function JobsPage() {
-  const router = useRouter();
+    title: "",
+    company: "",
+    description: "",
+  };
+}
 
-  const [jobs, setJobs] = useState<JobDraft[]>([initialJob]);
+export default function JobPage() {
+  const router =
+    useRouter();
 
-  const readyJobs = useMemo(
-    () =>
-      jobs.filter((job) => job.description.trim().length >= 80),
-    [jobs],
-  );
-
-  function updateJob(
-    id: string,
-    field: keyof Omit<JobDraft, "id">,
-    value: string,
-  ) {
-    setJobs((currentJobs) =>
-      currentJobs.map((job) =>
-        job.id === id ? { ...job, [field]: value } : job,
-      ),
-    );
-  }
-
-  function addJob() {
-    setJobs((currentJobs) => [
-      ...currentJobs,
-      {
-        id: `job-${Date.now()}`,
-        title: "",
-        company: "",
-        description: "",
-      },
+  const [
+    jobs,
+    setJobs,
+  ] =
+    useState<JobDraft[]>([
+      createEmptyJob(),
     ]);
-  }
 
-  function removeJob(id: string) {
-    setJobs((currentJobs) => {
-      if (currentJobs.length === 1) {
-        return currentJobs;
+  const [
+    resume,
+    setResume,
+  ] =
+    useState<
+      StructuredResume | null
+    >(null);
+
+  const [
+    loading,
+    setLoading,
+  ] =
+    useState(true);
+
+  useEffect(() => {
+    try {
+      const resumeRaw =
+        localStorage.getItem(
+          "resume-match-structured-resume",
+        );
+
+      if (!resumeRaw) {
+        router.replace(
+          "/novo/importar",
+        );
+
+        return;
       }
 
-      return currentJobs.filter((job) => job.id !== id);
-    });
-  }
+      const parsedResume =
+        JSON.parse(
+          resumeRaw,
+        ) as StructuredResume;
 
-  function continueFlow() {
-    if (readyJobs.length === 0) {
+      setResume(
+        parsedResume,
+      );
+
+      const savedJobsRaw =
+        localStorage.getItem(
+          "resume-match-jobs",
+        );
+
+      if (savedJobsRaw) {
+        const parsedJobs =
+          JSON.parse(
+            savedJobsRaw,
+          );
+
+        if (
+          Array.isArray(
+            parsedJobs,
+          ) &&
+          parsedJobs.length > 0
+        ) {
+          setJobs(
+            parsedJobs,
+          );
+        }
+      }
+
+      setLoading(false);
+    } catch (
+      error
+    ) {
+      console.error(
+        "Erro ao carregar currículo:",
+        error,
+      );
+
+      router.replace(
+        "/novo/importar",
+      );
+    }
+  }, [router]);
+
+  useEffect(() => {
+    if (loading) {
       return;
     }
 
     localStorage.setItem(
       "resume-match-jobs",
-      JSON.stringify(readyJobs),
+      JSON.stringify(jobs),
+    );
+  }, [
+    jobs,
+    loading,
+  ]);
+
+  function updateJob(
+    id: string,
+    field:
+      | "title"
+      | "company"
+      | "description",
+    value: string,
+  ) {
+    setJobs(
+      (current) =>
+        current.map(
+          (job) =>
+            job.id === id
+              ? {
+                  ...job,
+                  [field]:
+                    value,
+                }
+              : job,
+        ),
+    );
+  }
+
+  function addJob() {
+    setJobs(
+      (current) => [
+        ...current,
+        createEmptyJob(),
+      ],
+    );
+  }
+
+  function removeJob(
+    id: string,
+  ) {
+    setJobs(
+      (current) => {
+        if (
+          current.length === 1
+        ) {
+          return current;
+        }
+
+        return current.filter(
+          (job) =>
+            job.id !== id,
+        );
+      },
+    );
+  }
+
+  const validJobs =
+    jobs.filter(
+      (job) =>
+        job.title.trim() &&
+        job.description
+          .trim()
+          .length >= 80,
     );
 
-    router.push("/novo/revisao");
+  const canContinue =
+    validJobs.length ===
+      jobs.length &&
+    jobs.length > 0;
+
+  function continueToReview() {
+    if (!canContinue) {
+      return;
+    }
+
+    const cleanedJobs =
+      jobs.map(
+        (job) => ({
+          ...job,
+          title:
+            job.title.trim(),
+          company:
+            job.company.trim(),
+          description:
+            job.description.trim(),
+        }),
+      );
+
+    localStorage.setItem(
+      "resume-match-jobs",
+      JSON.stringify(
+        cleanedJobs,
+      ),
+    );
+
+    localStorage.setItem(
+      "resume-match-review",
+      JSON.stringify({
+        jobs:
+          cleanedJobs,
+      }),
+    );
+
+    router.push(
+      "/novo/revisao",
+    );
+  }
+
+  if (loading) {
+    return (
+      <main
+        className="
+          min-h-screen
+          bg-[#F7F7F5]
+        "
+      >
+        <div
+          className="
+            mx-auto
+            max-w-[960px]
+            px-6
+            py-20
+            text-sm
+            text-[#686864]
+          "
+        >
+          Carregando currículo...
+        </div>
+      </main>
+    );
   }
 
   return (
-    <main className="min-h-screen bg-[#F7F7F5] text-[#181818]">
-      {/* Header */}
-      <header className="border-b border-[#DEDEDA] bg-white">
-        <div className="mx-auto flex h-20 max-w-[1280px] items-center justify-between px-6 lg:px-10">
-          <a href="/">
-            <img
-              src="/brand/resume-match-logo-horizontal.svg"
-              alt="Resume Match"
-              className="h-9 w-auto"
-            />
-          </a>
+    <main
+      className="
+        min-h-screen
+        bg-[#F7F7F5]
+        text-[#181818]
+      "
+    >
+      <header
+        className="
+          border-b
+          border-[#DEDEDA]
+          bg-white
+        "
+      >
+        <div
+          className="
+            mx-auto
+            flex
+            h-20
+            max-w-[1280px]
+            items-center
+            justify-between
+            gap-6
+            px-6
+            lg:px-10
+          "
+        >
+          <img
+            src="/brand/resume-match-logo-horizontal.svg"
+            alt="Resume Match"
+            className="h-9 w-auto"
+          />
 
-          <a
-            href="/"
-            className="inline-flex h-10 items-center rounded-lg border border-[#D6D6D1] bg-white px-4 text-sm font-medium transition hover:bg-[#F2F2EF]"
+          <button
+            type="button"
+            onClick={() =>
+              router.push(
+                "/resultados",
+              )
+            }
+            className="
+              text-sm
+              font-medium
+              text-[#686864]
+            "
           >
-            Sair
-          </a>
+            Voltar aos resultados
+          </button>
         </div>
       </header>
 
-      {/* Resume context */}
-      <div className="border-b border-[#DEDEDA] bg-white">
-        <div className="mx-auto flex max-w-[1180px] flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between lg:px-10">
-          <div className="flex items-center gap-4">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#FFE4EB] text-xs font-bold text-[#E9426B]">
-              PDF
-            </div>
-
-            <div>
-              <p className="text-xs font-medium text-[#777772]">
-                Currículo-base
-              </p>
-
-              <p className="mt-1 text-sm font-semibold">
-                Currículo importado
-              </p>
-            </div>
-          </div>
-
-          <a
-            href="/novo/importar"
-            className="text-sm font-semibold text-[#686864] transition hover:text-[#181818]"
+      <div
+        className="
+          mx-auto
+          max-w-[960px]
+          px-6
+          py-14
+          lg:py-18
+        "
+      >
+        <div
+          className="
+            max-w-[680px]
+          "
+        >
+          <p
+            className="
+              text-sm
+              font-semibold
+              text-[#E9426B]
+            "
           >
-            Trocar currículo-base
-          </a>
+            Novas oportunidades
+          </p>
+
+          <h1
+            className="
+              mt-3
+              text-4xl
+              font-semibold
+              tracking-[-0.035em]
+              sm:text-5xl
+            "
+          >
+            Adicione as vagas que
+            você quer comparar.
+          </h1>
+
+          <p
+            className="
+              mt-5
+              text-base
+              leading-7
+              text-[#686864]
+            "
+          >
+            Você não precisa
+            importar o currículo
+            novamente. Vamos usar o
+            currículo-base já
+            revisado e criar uma
+            versão separada para cada
+            oportunidade.
+          </p>
         </div>
-      </div>
 
-      <div className="mx-auto max-w-[1180px] px-6 py-12 lg:px-10 lg:py-16">
-        <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_300px]">
-          {/* Main content */}
-          <section>
-            <div className="max-w-[720px]">
-              <p className="text-sm font-semibold text-[#E9426B]">
-                Candidaturas
+        {resume && (
+          <div
+            className="
+              mt-8
+              flex
+              items-center
+              justify-between
+              gap-5
+              rounded-xl
+              border
+              border-[#DEDEDA]
+              bg-white
+              p-5
+            "
+          >
+            <div>
+              <p
+                className="
+                  text-xs
+                  text-[#777772]
+                "
+              >
+                Currículo-base ativo
               </p>
 
-              <h1 className="mt-3 text-4xl font-semibold tracking-[-0.035em] sm:text-5xl">
-                Adicione as vagas que quer trabalhar.
-              </h1>
-
-              <p className="mt-5 max-w-2xl text-base leading-7 text-[#686864]">
-                Você pode adicionar várias oportunidades de uma vez. Cada vaga
-                será analisada separadamente e receberá sua própria versão do
-                currículo.
+              <p
+                className="
+                  mt-1
+                  font-semibold
+                "
+              >
+                {resume.name}
               </p>
-            </div>
 
-            {/* Jobs */}
-            <div className="mt-10 space-y-5">
-              {jobs.map((job, index) => {
-                const isReady =
-                  job.description.trim().length >= 80;
-
-                return (
-                  <article
-                    key={job.id}
-                    className="rounded-xl border border-[#DEDEDA] bg-white"
-                  >
-                    <div className="flex items-center justify-between border-b border-[#E7E7E3] px-5 py-4 sm:px-6">
-                      <div className="flex items-center gap-3">
-                        <span className="flex h-7 w-7 items-center justify-center rounded-md bg-[#F0F0ED] text-xs font-semibold text-[#686864]">
-                          {index + 1}
-                        </span>
-
-                        <p className="text-sm font-semibold">
-                          {job.title.trim()
-                            ? job.title
-                            : `Vaga ${index + 1}`}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-4">
-                        <span
-                          className={`text-xs font-medium ${
-                            isReady
-                              ? "text-[#247A52]"
-                              : "text-[#969691]"
-                          }`}
-                        >
-                          {isReady ? "Pronta" : "Em preenchimento"}
-                        </span>
-
-                        {jobs.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => removeJob(job.id)}
-                            className="text-xs font-medium text-[#777772] transition hover:text-[#B83A3A]"
-                          >
-                            Remover
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="p-5 sm:p-6">
-                      <div className="grid gap-5 sm:grid-cols-2">
-                        <label className="block">
-                          <span className="mb-2 block text-sm font-medium">
-                            Cargo
-                          </span>
-
-                          <input
-                            type="text"
-                            value={job.title}
-                            onChange={(event) =>
-                              updateJob(
-                                job.id,
-                                "title",
-                                event.target.value,
-                              )
-                            }
-                            placeholder="Ex.: Product Designer Especialista"
-                            className="h-11 w-full rounded-lg border border-[#CBCBC5] bg-white px-3.5 text-sm outline-none transition placeholder:text-[#A0A09A] focus:border-[#181818] focus:ring-1 focus:ring-[#181818]"
-                          />
-                        </label>
-
-                        <label className="block">
-                          <span className="mb-2 block text-sm font-medium">
-                            Empresa
-                            <span className="ml-1 font-normal text-[#969691]">
-                              opcional
-                            </span>
-                          </span>
-
-                          <input
-                            type="text"
-                            value={job.company}
-                            onChange={(event) =>
-                              updateJob(
-                                job.id,
-                                "company",
-                                event.target.value,
-                              )
-                            }
-                            placeholder="Ex.: Empresa"
-                            className="h-11 w-full rounded-lg border border-[#CBCBC5] bg-white px-3.5 text-sm outline-none transition placeholder:text-[#A0A09A] focus:border-[#181818] focus:ring-1 focus:ring-[#181818]"
-                          />
-                        </label>
-                      </div>
-
-                      <label className="mt-5 block">
-                        <div className="mb-2 flex items-center justify-between gap-4">
-                          <span className="text-sm font-medium">
-                            Descrição da vaga
-                          </span>
-
-                          <span className="text-xs text-[#969691]">
-                            {job.description.length.toLocaleString("pt-BR")}
-                            {" / "}
-                            15.000
-                          </span>
-                        </div>
-
-                        <textarea
-                          value={job.description}
-                          maxLength={15000}
-                          rows={9}
-                          onChange={(event) =>
-                            updateJob(
-                              job.id,
-                              "description",
-                              event.target.value,
-                            )
-                          }
-                          placeholder="Cole aqui a descrição completa da vaga, incluindo responsabilidades, requisitos e informações relevantes."
-                          className="w-full resize-y rounded-lg border border-[#CBCBC5] bg-white px-3.5 py-3 text-sm leading-6 outline-none transition placeholder:text-[#A0A09A] focus:border-[#181818] focus:ring-1 focus:ring-[#181818]"
-                        />
-                      </label>
-
-                      <div className="mt-3 flex items-start gap-2">
-                        <span
-                          className={`mt-[2px] text-sm ${
-                            isReady
-                              ? "text-[#247A52]"
-                              : "text-[#969691]"
-                          }`}
-                        >
-                          {isReady ? "✓" : "○"}
-                        </span>
-
-                        <p className="text-xs leading-5 text-[#777772]">
-                          {isReady
-                            ? "Descrição suficiente para analisar esta oportunidade."
-                            : "Cole a descrição completa da vaga para continuar."}
-                        </p>
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
+              {resume.headline && (
+                <p
+                  className="
+                    mt-1
+                    text-sm
+                    text-[#686864]
+                  "
+                >
+                  {resume.headline}
+                </p>
+              )}
             </div>
 
             <button
               type="button"
-              onClick={addJob}
-              className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-[#BCBCB6] bg-transparent px-5 py-4 text-sm font-semibold text-[#686864] transition hover:border-[#777772] hover:bg-white hover:text-[#181818]"
+              onClick={() =>
+                router.push(
+                  "/novo/revisar-curriculo",
+                )
+              }
+              className="
+                shrink-0
+                rounded-lg
+                border
+                border-[#DCDCD8]
+                bg-white
+                px-4
+                py-2.5
+                text-sm
+                font-semibold
+              "
             >
-              <span className="text-lg font-normal">+</span>
-              Adicionar outra vaga
+              Revisar currículo
             </button>
-          </section>
+          </div>
+        )}
 
-          {/* Sidebar */}
-          <aside className="h-fit lg:sticky lg:top-8">
-            <div className="rounded-xl border border-[#DEDEDA] bg-white p-5">
-              <p className="text-sm font-semibold">
-                Esta rodada
-              </p>
+        <div
+          className="
+            mt-8
+            grid
+            gap-5
+          "
+        >
+          {jobs.map(
+            (
+              job,
+              index,
+            ) => {
+              const descriptionLength =
+                job.description
+                  .trim()
+                  .length;
 
-              <div className="mt-5 space-y-4">
-                <div className="flex items-center justify-between border-b border-[#E7E7E3] pb-4">
-                  <span className="text-sm text-[#686864]">
-                    Vagas adicionadas
-                  </span>
+              const ready =
+                Boolean(
+                  job.title.trim(),
+                ) &&
+                descriptionLength >=
+                  80;
 
-                  <span className="text-sm font-semibold">
-                    {jobs.length}
-                  </span>
-                </div>
+              return (
+                <article
+                  key={job.id}
+                  className="
+                    rounded-xl
+                    border
+                    border-[#DEDEDA]
+                    bg-white
+                    p-5
+                    sm:p-6
+                  "
+                >
+                  <div
+                    className="
+                      flex
+                      items-start
+                      justify-between
+                      gap-5
+                    "
+                  >
+                    <div>
+                      <p
+                        className="
+                          text-xs
+                          font-semibold
+                          text-[#E9426B]
+                        "
+                      >
+                        Vaga{" "}
+                        {index + 1}
+                      </p>
 
-                <div className="flex items-center justify-between border-b border-[#E7E7E3] pb-4">
-                  <span className="text-sm text-[#686864]">
-                    Prontas para análise
-                  </span>
+                      <h2
+                        className="
+                          mt-1
+                          text-lg
+                          font-semibold
+                        "
+                      >
+                        Dados da
+                        oportunidade
+                      </h2>
+                    </div>
 
-                  <span className="text-sm font-semibold">
-                    {readyJobs.length}
-                  </span>
-                </div>
+                    {jobs.length >
+                      1 && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          removeJob(
+                            job.id,
+                          )
+                        }
+                        className="
+                          text-sm
+                          font-medium
+                          text-[#9A545F]
+                        "
+                      >
+                        Remover
+                      </button>
+                    )}
+                  </div>
 
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#686864]">
-                    PDFs ao final
-                  </span>
+                  <div
+                    className="
+                      mt-6
+                      grid
+                      gap-5
+                    "
+                  >
+                    <label
+                      className="
+                        grid
+                        gap-2
+                      "
+                    >
+                      <span
+                        className="
+                          text-sm
+                          font-semibold
+                        "
+                      >
+                        Cargo
+                      </span>
 
-                  <span className="text-sm font-semibold">
-                    {readyJobs.length}
-                  </span>
-                </div>
-              </div>
+                      <input
+                        value={
+                          job.title
+                        }
+                        onChange={(
+                          event,
+                        ) =>
+                          updateJob(
+                            job.id,
+                            "title",
+                            event
+                              .target
+                              .value,
+                          )
+                        }
+                        placeholder="Ex.: Senior Product Designer"
+                        className="
+                          h-12
+                          rounded-lg
+                          border
+                          border-[#DCDCD8]
+                          bg-white
+                          px-4
+                          outline-none
+                          transition
+                          focus:border-[#181818]
+                        "
+                      />
+                    </label>
 
-              <div className="mt-6 rounded-lg bg-[#F7F7F5] p-4">
-                <p className="text-xs leading-5 text-[#686864]">
-                  Cada vaga gera uma versão independente do currículo. Seu
-                  currículo-base continua disponível para futuras
-                  candidaturas.
-                </p>
-              </div>
+                    <label
+                      className="
+                        grid
+                        gap-2
+                      "
+                    >
+                      <span
+                        className="
+                          text-sm
+                          font-semibold
+                        "
+                      >
+                        Empresa
+                        <span
+                          className="
+                            ml-1
+                            font-normal
+                            text-[#8A8A85]
+                          "
+                        >
+                          opcional
+                        </span>
+                      </span>
 
-              <button
-                type="button"
-                disabled={readyJobs.length === 0}
-                onClick={continueFlow}
-                className="mt-5 h-11 w-full rounded-lg bg-[#181818] px-5 text-sm font-semibold text-white transition enabled:hover:bg-black disabled:cursor-not-allowed disabled:bg-[#CBCBC5] disabled:text-[#777772]"
-              >
-                {readyJobs.length === 0
-                  ? "Adicione uma vaga"
-                  : readyJobs.length === 1
-                    ? "Revisar 1 vaga"
-                    : `Revisar ${readyJobs.length} vagas`}
-              </button>
+                      <input
+                        value={
+                          job.company
+                        }
+                        onChange={(
+                          event,
+                        ) =>
+                          updateJob(
+                            job.id,
+                            "company",
+                            event
+                              .target
+                              .value,
+                          )
+                        }
+                        placeholder="Ex.: Empresa"
+                        className="
+                          h-12
+                          rounded-lg
+                          border
+                          border-[#DCDCD8]
+                          bg-white
+                          px-4
+                          outline-none
+                          transition
+                          focus:border-[#181818]
+                        "
+                      />
+                    </label>
 
-              <p className="mt-3 text-center text-xs leading-5 text-[#969691]">
-                Você ainda poderá editar tudo antes de gerar os currículos.
-              </p>
-            </div>
+                    <label
+                      className="
+                        grid
+                        gap-2
+                      "
+                    >
+                      <span
+                        className="
+                          text-sm
+                          font-semibold
+                        "
+                      >
+                        Descrição da
+                        vaga
+                      </span>
 
-            <a
-              href="/novo/importar"
-              className="mt-5 block text-center text-sm font-medium text-[#686864] transition hover:text-[#181818]"
-            >
-              Voltar ao currículo-base
-            </a>
-          </aside>
+                      <textarea
+                        value={
+                          job.description
+                        }
+                        onChange={(
+                          event,
+                        ) =>
+                          updateJob(
+                            job.id,
+                            "description",
+                            event
+                              .target
+                              .value,
+                          )
+                        }
+                        placeholder="Cole aqui a descrição completa da vaga..."
+                        className="
+                          min-h-[240px]
+                          resize-y
+                          rounded-lg
+                          border
+                          border-[#DCDCD8]
+                          bg-white
+                          p-4
+                          leading-6
+                          outline-none
+                          transition
+                          focus:border-[#181818]
+                        "
+                      />
+                    </label>
+
+                    <div
+                      className="
+                        flex
+                        items-center
+                        justify-between
+                        gap-4
+                        text-xs
+                      "
+                    >
+                      <span
+                        className={
+                          ready
+                            ? "font-medium text-[#247A52]"
+                            : "text-[#777772]"
+                        }
+                      >
+                        {ready
+                          ? "✓ Pronta para análise"
+                          : "Preencha o cargo e use ao menos 80 caracteres na descrição"}
+                      </span>
+
+                      <span
+                        className="
+                          text-[#8A8A85]
+                        "
+                      >
+                        {
+                          descriptionLength
+                        }{" "}
+                        caracteres
+                      </span>
+                    </div>
+                  </div>
+                </article>
+              );
+            },
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={
+            addJob
+          }
+          className="
+            mt-5
+            w-full
+            rounded-xl
+            border
+            border-dashed
+            border-[#CFCFCA]
+            bg-transparent
+            px-5
+            py-4
+            text-sm
+            font-semibold
+            text-[#4F4F4B]
+            transition
+            hover:bg-white
+          "
+        >
+          + Adicionar outra vaga
+        </button>
+
+        <div
+          className="
+            mt-8
+            flex
+            flex-col
+            gap-3
+            border-t
+            border-[#DEDEDA]
+            pt-6
+            sm:flex-row
+            sm:items-center
+            sm:justify-between
+          "
+        >
+          <div
+            className="
+              text-sm
+              text-[#686864]
+            "
+          >
+            {
+              validJobs.length
+            }{" "}
+            de {jobs.length}{" "}
+            {jobs.length === 1
+              ? "vaga pronta"
+              : "vagas prontas"}
+          </div>
+
+          <button
+            type="button"
+            disabled={
+              !canContinue
+            }
+            onClick={
+              continueToReview
+            }
+            className={`
+              h-12
+              rounded-lg
+              px-6
+              text-sm
+              font-semibold
+              text-white
+              transition
+
+              ${
+                canContinue
+                  ? "bg-[#181818] hover:bg-black"
+                  : "cursor-not-allowed bg-[#A7A7A2]"
+              }
+            `}
+          >
+            Revisar{" "}
+            {jobs.length === 1
+              ? "vaga"
+              : `${jobs.length} vagas`}
+          </button>
         </div>
       </div>
     </main>

@@ -33,7 +33,10 @@ export default function Home() {
           </a>
 
           <nav className="hidden items-center gap-8 text-sm md:flex">
-            <a href="/" className="font-medium text-[#181818]">
+            <a
+              href="/"
+              className="font-medium text-[#181818]"
+            >
               Início
             </a>
 
@@ -77,7 +80,7 @@ export default function Home() {
 
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <a
-                href="/novo/importar"
+                href="/novo/curriculo"
                 className="inline-flex h-12 items-center justify-center rounded-lg bg-[#181818] px-6 text-sm font-semibold text-white transition hover:bg-black"
               >
                 Criar currículo para uma vaga
@@ -133,7 +136,10 @@ export default function Home() {
               </span>
             </a>
 
-            <button className="group mt-3 flex w-full items-center gap-4 rounded-xl border border-[#D6D6D1] p-4 text-left transition hover:border-[#AFAFAA] hover:bg-[#FAFAF8]">
+            <a
+              href="/novo/criar-curriculo"
+              className="group mt-3 flex w-full items-center gap-4 rounded-xl border border-[#D6D6D1] p-4 text-left transition hover:border-[#AFAFAA] hover:bg-[#FAFAF8]"
+            >
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#EEEEEB] text-lg font-semibold">
                 +
               </span>
@@ -154,7 +160,7 @@ export default function Home() {
               >
                 →
               </span>
-            </button>
+            </a>
 
             <div className="mt-7 border-t border-[#E7E7E3] pt-5">
               <p className="text-xs leading-5 text-[#858580]">
@@ -199,7 +205,9 @@ export default function Home() {
                 {step.number}
               </p>
 
-              <h3 className="mt-5 text-lg font-semibold">{step.title}</h3>
+              <h3 className="mt-5 text-lg font-semibold">
+                {step.title}
+              </h3>
 
               <p className="mt-3 max-w-sm text-sm leading-6 text-[#686864]">
                 {step.description}
@@ -231,7 +239,7 @@ export default function Home() {
             </div>
 
             <a
-              href="/novo/importar"
+              href="/novo/curriculo"
               className="inline-flex h-10 self-start items-center justify-center rounded-lg border border-[#D6D6D1] px-4 text-sm font-semibold transition hover:bg-[#F2F2EF] sm:self-auto"
             >
               Adicionar currículo
@@ -255,7 +263,7 @@ export default function Home() {
             </p>
 
             <a
-              href="/novo/importar"
+              href="/novo/curriculo"
               className="mt-6 inline-flex h-10 items-center justify-center rounded-lg bg-[#181818] px-4 text-sm font-semibold text-white transition hover:bg-black"
             >
               Adicionar currículo
@@ -267,7 +275,9 @@ export default function Home() {
       <section className="border-t border-[#DEDEDA]">
         <div className="mx-auto grid max-w-[1280px] gap-10 px-6 py-14 lg:grid-cols-3 lg:px-10">
           <div>
-            <p className="text-sm font-semibold">Sem inventar informações</p>
+            <p className="text-sm font-semibold">
+              Sem inventar informações
+            </p>
 
             <p className="mt-2 text-sm leading-6 text-[#686864]">
               As sugestões usam somente informações presentes no seu histórico
@@ -276,7 +286,9 @@ export default function Home() {
           </div>
 
           <div>
-            <p className="text-sm font-semibold">Você revisa tudo</p>
+            <p className="text-sm font-semibold">
+              Você revisa tudo
+            </p>
 
             <p className="mt-2 text-sm leading-6 text-[#686864]">
               Confira as alterações antes de aceitar qualquer sugestão.
@@ -284,7 +296,9 @@ export default function Home() {
           </div>
 
           <div>
-            <p className="text-sm font-semibold">Pronto para candidatura</p>
+            <p className="text-sm font-semibold">
+              Pronto para candidatura
+            </p>
 
             <p className="mt-2 text-sm leading-6 text-[#686864]">
               Copie o conteúdo ou gere um PDF leve para enviar à empresa.
@@ -301,7 +315,9 @@ export default function Home() {
             className="h-7 w-auto opacity-70"
           />
 
-          <span>Seu currículo direcionado para cada oportunidade.</span>
+          <span>
+            Seu currículo direcionado para cada oportunidade.
+          </span>
         </div>
       </footer>
     </main>
