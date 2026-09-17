@@ -430,11 +430,20 @@ export default function DashboardPage() {
     );
   }
 
+  const firstName =
+    resume?.name
+      ?.trim()
+      .split(/\s+/)[0] || "";
+
   return (
     <main className="min-h-screen bg-[#F7F7F5] text-[#181818]">
       <header className="border-b border-[#DEDEDA] bg-white">
-        <div className="mx-auto flex h-20 max-w-[1280px] items-center justify-between px-6 lg:px-10">
-          <a href="/">
+        <div className="mx-auto flex min-h-20 max-w-[1280px] items-center justify-between gap-5 px-6 py-3 lg:px-10">
+          <a
+            href="/"
+            className="shrink-0"
+            aria-label="Ir para o início"
+          >
             <img
               src="/brand/resume-match-logo-horizontal.svg"
               alt="Resume Match"
@@ -442,50 +451,51 @@ export default function DashboardPage() {
             />
           </a>
 
-          <div className="flex items-center gap-3">
+          <nav className="flex items-center gap-2 sm:gap-3">
+            <a
+              href="/"
+              className="inline-flex h-10 items-center justify-center rounded-lg px-3 text-sm font-medium text-[#686864] transition hover:bg-[#F2F2EF] hover:text-[#181818] sm:px-4"
+            >
+              Início
+            </a>
+
             <span className="hidden rounded-full bg-[#FFF0F4] px-3 py-1 text-xs font-semibold text-[#C23F61] sm:inline-flex">
               Beta
             </span>
 
-            <button
-              type="button"
-              onClick={
-                handleLogout
-              }
-              className="h-10 rounded-lg border border-[#D6D6D1] bg-white px-4 text-sm font-medium transition hover:bg-[#F2F2EF]"
-            >
-              Sair
-            </button>
-          </div>
+            <span className="inline-flex h-10 items-center justify-center rounded-lg border border-[#D6D6D1] bg-[#F7F7F5] px-3 text-sm font-semibold sm:px-4">
+              Minha conta
+            </span>
+          </nav>
         </div>
       </header>
 
       <div className="mx-auto max-w-[1180px] px-6 py-10 lg:px-10 lg:py-14">
-        <div className="flex flex-col gap-6 border-b border-[#DEDEDA] pb-10 sm:flex-row sm:items-end sm:justify-between">
-          <div>
+        <section className="flex flex-col gap-7 border-b border-[#DEDEDA] pb-10 sm:flex-row sm:items-end sm:justify-between">
+          <div className="max-w-3xl">
             <p className="text-sm font-semibold text-[#E9426B]">
-              Sua conta
+              MINHA CONTA
             </p>
 
             <h1 className="mt-3 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-              Seu espaço no Resume Match.
+              {firstName
+                ? `Olá, ${firstName}.`
+                : "Seu espaço no Resume Match."}
             </h1>
 
-            <p className="mt-4 text-base text-[#686864]">
-              {email}
+            <p className="mt-4 max-w-2xl text-base leading-7 text-[#686864]">
+              Gerencie seu currículo-base e acompanhe os currículos que você já direcionou para suas candidaturas.
             </p>
           </div>
 
           <button
             type="button"
-            onClick={
-              newApplication
-            }
-            className="inline-flex h-12 items-center justify-center rounded-lg bg-[#181818] px-6 text-sm font-semibold text-white transition hover:bg-black"
+            onClick={newApplication}
+            className="inline-flex h-12 shrink-0 items-center justify-center rounded-lg bg-[#181818] px-6 text-sm font-semibold text-white transition hover:bg-black"
           >
             + Nova candidatura
           </button>
-        </div>
+        </section>
 
         {error && (
           <div className="mt-8 rounded-xl border border-[#F0C4C4] bg-[#FFF4F4] px-5 py-4">
@@ -521,29 +531,27 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_360px]">
-          <section>
-            <div className="rounded-2xl border border-[#DEDEDA] bg-white">
-              <div className="flex items-center justify-between border-b border-[#E7E7E3] px-6 py-5">
+        <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <section className="min-w-0">
+            <div className="overflow-hidden rounded-2xl border border-[#DEDEDA] bg-white">
+              <div className="flex flex-col gap-4 border-b border-[#E7E7E3] px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-sm font-semibold">
-                    Currículo-base
+                  <p className="text-lg font-semibold">
+                    Meu currículo
                   </p>
 
                   <p className="mt-1 text-sm text-[#777772]">
-                    Sua trajetória profissional principal.
+                    Este é o currículo-base usado para criar versões direcionadas.
                   </p>
                 </div>
 
                 {resume && (
                   <button
                     type="button"
-                    onClick={
-                      editResume
-                    }
-                    className="text-sm font-semibold underline underline-offset-4"
+                    onClick={editResume}
+                    className="self-start text-sm font-semibold underline underline-offset-4 sm:self-auto"
                   >
-                    Editar
+                    Editar currículo
                   </button>
                 )}
               </div>
@@ -551,38 +559,33 @@ export default function DashboardPage() {
               {resume ? (
                 <div className="p-6">
                   <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-xl font-semibold">
                         {resume.name}
                       </p>
 
                       {resume.headline && (
-                        <p className="mt-1 text-sm text-[#686864]">
+                        <p className="mt-1 max-w-2xl text-sm leading-6 text-[#686864]">
                           {resume.headline}
                         </p>
                       )}
 
-                      <p className="mt-3 text-xs font-medium text-[#999994]">
-                        Salvo na sua conta
+                      <p className="mt-3 text-xs font-medium text-[#247A52]">
+                        ✓ Salvo na sua conta
                       </p>
                     </div>
 
                     <span className="self-start rounded-full bg-[#F1F7F3] px-3 py-1 text-xs font-semibold text-[#247A52]">
-                      {resumeSource ===
-                      "manual"
+                      {resumeSource === "manual"
                         ? "Criado manualmente"
                         : "Importado"}
                     </span>
                   </div>
 
                   <div className="mt-6 grid gap-4 border-t border-[#E7E7E3] pt-5 sm:grid-cols-3">
-                    <div>
+                    <div className="rounded-xl bg-[#F7F7F5] p-4">
                       <p className="text-2xl font-semibold">
-                        {
-                          resume
-                            .experiences
-                            .length
-                        }
+                        {resume.experiences.length}
                       </p>
 
                       <p className="mt-1 text-xs text-[#777772]">
@@ -590,13 +593,9 @@ export default function DashboardPage() {
                       </p>
                     </div>
 
-                    <div>
+                    <div className="rounded-xl bg-[#F7F7F5] p-4">
                       <p className="text-2xl font-semibold">
-                        {
-                          resume
-                            .education
-                            .length
-                        }
+                        {resume.education.length}
                       </p>
 
                       <p className="mt-1 text-xs text-[#777772]">
@@ -604,13 +603,9 @@ export default function DashboardPage() {
                       </p>
                     </div>
 
-                    <div>
+                    <div className="rounded-xl bg-[#F7F7F5] p-4">
                       <p className="text-2xl font-semibold">
-                        {
-                          resume
-                            .skills
-                            .length
-                        }
+                        {resume.skills.length}
                       </p>
 
                       <p className="mt-1 text-xs text-[#777772]">
@@ -619,33 +614,37 @@ export default function DashboardPage() {
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={
-                      editResume
-                    }
-                    className="mt-6 h-10 rounded-lg border border-[#D6D6D1] px-4 text-sm font-semibold transition hover:bg-[#F2F2EF]"
-                  >
-                    Revisar currículo
-                  </button>
+                  <div className="mt-6 flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={editResume}
+                      className="h-10 rounded-lg border border-[#D6D6D1] px-4 text-sm font-semibold transition hover:bg-[#F2F2EF]"
+                    >
+                      Revisar currículo
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={newApplication}
+                      className="h-10 rounded-lg bg-[#181818] px-4 text-sm font-semibold text-white transition hover:bg-black"
+                    >
+                      Usar em uma nova vaga
+                    </button>
+                  </div>
                 </div>
               ) : (
-                <div className="flex min-h-[240px] flex-col items-center justify-center px-6 text-center">
+                <div className="flex min-h-[260px] flex-col items-center justify-center px-6 text-center">
                   <h2 className="text-base font-semibold">
                     Você ainda não tem um currículo-base
                   </h2>
 
                   <p className="mt-2 max-w-sm text-sm leading-6 text-[#777772]">
-                    Importe seu currículo ou preencha suas informações manualmente.
+                    Importe seu currículo ou preencha suas informações manualmente para começar.
                   </p>
 
                   <button
                     type="button"
-                    onClick={() =>
-                      router.push(
-                        "/novo/curriculo",
-                      )
-                    }
+                    onClick={() => router.push("/novo/curriculo")}
                     className="mt-5 h-10 rounded-lg bg-[#181818] px-4 text-sm font-semibold text-white"
                   >
                     Criar currículo-base
@@ -654,75 +653,58 @@ export default function DashboardPage() {
               )}
             </div>
 
-            <div className="mt-6 rounded-2xl border border-[#DEDEDA] bg-white">
-              <div className="flex items-center justify-between border-b border-[#E7E7E3] px-6 py-5">
+            <div className="mt-6 overflow-hidden rounded-2xl border border-[#DEDEDA] bg-white">
+              <div className="flex flex-col gap-3 border-b border-[#E7E7E3] px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-sm font-semibold">
-                    Candidaturas
+                  <p className="text-lg font-semibold">
+                    Candidaturas recentes
                   </p>
 
                   <p className="mt-1 text-sm text-[#777772]">
-                    Currículos direcionados que você já criou.
+                    {applications.length > 0
+                      ? `${applications.length} ${applications.length === 1 ? "currículo direcionado" : "currículos direcionados"} na sua conta.`
+                      : "Os currículos direcionados que você criar aparecerão aqui."}
                   </p>
                 </div>
 
-                {applications.length >
-                  0 && (
+                {applications.length > 0 && (
                   <a
                     href="/resultados"
-                    className="text-sm font-semibold underline underline-offset-4"
+                    className="self-start text-sm font-semibold underline underline-offset-4 sm:self-auto"
                   >
-                    Ver todas
+                    Ver todos os resultados
                   </a>
                 )}
               </div>
 
-              {applications.length >
-              0 ? (
+              {applications.length > 0 ? (
                 <div>
                   {applications
-                    .slice(
-                      0,
-                      5,
-                    )
-                    .map(
-                      (
-                        application,
-                      ) => (
-                        <div
-                          key={
-                            application.id
-                          }
-                          className="flex items-center justify-between gap-5 border-b border-[#EFEFEB] px-6 py-5 last:border-b-0"
-                        >
-                          <div>
-                            <p className="font-semibold">
-                              {
-                                application.job_title
-                              }
+                    .slice(0, 5)
+                    .map((application) => (
+                      <div
+                        key={application.id}
+                        className="flex items-center justify-between gap-5 border-b border-[#EFEFEB] px-6 py-5 last:border-b-0"
+                      >
+                        <div className="min-w-0">
+                          <p className="font-semibold">
+                            {application.job_title}
+                          </p>
+
+                          {application.company && (
+                            <p className="mt-1 truncate text-sm text-[#777772]">
+                              {application.company}
                             </p>
-
-                            {application.company && (
-                              <p className="mt-1 text-sm text-[#777772]">
-                                {
-                                  application.company
-                                }
-                              </p>
-                            )}
-                          </div>
-
-                          {typeof application.compatibility_score ===
-                            "number" && (
-                            <span className="shrink-0 rounded-full bg-[#F1F7F3] px-3 py-1 text-sm font-semibold text-[#247A52]">
-                              {
-                                application.compatibility_score
-                              }
-                              %
-                            </span>
                           )}
                         </div>
-                      ),
-                    )}
+
+                        {typeof application.compatibility_score === "number" && (
+                          <span className="shrink-0 rounded-full bg-[#F1F7F3] px-3 py-1 text-sm font-semibold text-[#247A52]">
+                            {application.compatibility_score}%
+                          </span>
+                        )}
+                      </div>
+                    ))}
                 </div>
               ) : (
                 <div className="flex min-h-[220px] flex-col items-center justify-center px-6 text-center">
@@ -736,10 +718,8 @@ export default function DashboardPage() {
 
                   <button
                     type="button"
-                    onClick={
-                      newApplication
-                    }
-                    className="mt-5 h-10 rounded-lg border border-[#D6D6D1] px-4 text-sm font-semibold"
+                    onClick={newApplication}
+                    className="mt-5 h-10 rounded-lg border border-[#D6D6D1] px-4 text-sm font-semibold transition hover:bg-[#F2F2EF]"
                   >
                     Criar candidatura
                   </button>
@@ -748,38 +728,42 @@ export default function DashboardPage() {
             </div>
           </section>
 
-          <aside>
+          <aside className="min-w-0">
             <div className="rounded-2xl border border-[#DEDEDA] bg-white p-6">
-              <p className="text-sm font-semibold">
-                Sua conta
-              </p>
+              <div className="flex items-center justify-between gap-4">
+                <p className="text-lg font-semibold">
+                  Sua conta
+                </p>
+
+                <span className="rounded-full bg-[#F1F7F3] px-3 py-1 text-xs font-semibold text-[#247A52]">
+                  Ativa
+                </span>
+              </div>
 
               <div className="mt-5 border-t border-[#E7E7E3] pt-5">
                 <p className="text-xs font-medium uppercase tracking-[0.08em] text-[#999994]">
                   E-mail
                 </p>
 
-                <p className="mt-2 break-all text-sm">
+                <p className="mt-2 break-all text-sm leading-6">
                   {email}
                 </p>
               </div>
 
               <div className="mt-5 border-t border-[#E7E7E3] pt-5">
-                <p className="text-xs font-medium uppercase tracking-[0.08em] text-[#999994]">
-                  Dados
+                <p className="text-sm font-semibold">
+                  Seus dados ficam sincronizados
                 </p>
 
-                <p className="mt-2 text-sm text-[#247A52]">
-                  Salvos no Supabase
+                <p className="mt-2 text-sm leading-6 text-[#777772]">
+                  Seu currículo-base e suas candidaturas ficam associados a esta conta para você continuar de onde parou.
                 </p>
               </div>
 
               <div className="mt-5 border-t border-[#E7E7E3] pt-5">
                 <button
                   type="button"
-                  onClick={
-                    handleLogout
-                  }
+                  onClick={handleLogout}
                   className="text-sm font-semibold text-[#686864] transition hover:text-[#181818]"
                 >
                   Sair da conta
@@ -787,14 +771,26 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="mt-6 rounded-2xl border border-[#DEDEDA] bg-white p-6">
-              <p className="text-sm font-semibold">
-                Conta sincronizada
+            <div className="mt-6 rounded-2xl border border-[#DEDEDA] bg-[#181818] p-6 text-white">
+              <p className="text-sm font-semibold text-[#FFB7C9]">
+                Próximo passo
               </p>
 
-              <p className="mt-2 text-sm leading-6 text-[#777772]">
-                Seu currículo-base e suas candidaturas podem ser associados à sua conta para acesso em outros dispositivos.
+              <p className="mt-2 text-lg font-semibold">
+                Encontrou uma vaga interessante?
               </p>
+
+              <p className="mt-2 text-sm leading-6 text-[#D5D5D0]">
+                Use seu currículo-base para gerar uma nova versão direcionada sem precisar começar de novo.
+              </p>
+
+              <button
+                type="button"
+                onClick={newApplication}
+                className="mt-5 h-10 rounded-lg bg-white px-4 text-sm font-semibold text-[#181818] transition hover:bg-[#F2F2EF]"
+              >
+                + Nova candidatura
+              </button>
             </div>
           </aside>
         </div>

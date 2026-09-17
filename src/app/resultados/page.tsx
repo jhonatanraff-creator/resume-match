@@ -482,6 +482,12 @@ export default function ResultsPage() {
   ] =
     useState(false);
 
+  const [
+    isLoggedIn,
+    setIsLoggedIn,
+  ] =
+    useState(false);
+
   useEffect(() => {
     let active =
       true;
@@ -597,6 +603,7 @@ export default function ResultsPage() {
         userError ||
         !user
       ) {
+        setIsLoggedIn(false);
         if (!active) {
           return;
         }
@@ -619,6 +626,8 @@ export default function ResultsPage() {
 
         return;
       }
+
+      setIsLoggedIn(true);
 
       try {
         /*
@@ -1089,6 +1098,18 @@ export default function ResultsPage() {
   function replaceBaseResume() {
     router.push(
       "/novo/curriculo",
+    );
+  }
+
+  function goHome() {
+    router.push("/");
+  }
+
+  function goToAccount() {
+    router.push(
+      isLoggedIn
+        ? "/dashboard"
+        : "/entrar",
     );
   }
 
@@ -2000,15 +2021,103 @@ export default function ResultsPage() {
         color: "#181818",
       }}
     >
+      <nav
+        style={{
+          width: "100%",
+          borderBottom: "1px solid #E3E1DE",
+          background: "#FFFFFF",
+        }}
+      >
+        <div
+          style={{
+            width: "min(1180px, calc(100% - 40px))",
+            minHeight: 80,
+            margin: "0 auto",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 18,
+            flexWrap: "wrap",
+            padding: "10px 0",
+          }}
+        >
+          <button
+            type="button"
+            onClick={goHome}
+            aria-label="Ir para o início"
+            style={{
+              border: 0,
+              padding: 0,
+              background: "transparent",
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+            }}
+          >
+            <img
+              src="/brand/resume-match-logo-horizontal.svg"
+              alt="Resume Match"
+              style={{
+                height: 36,
+                width: "auto",
+                display: "block",
+              }}
+            />
+          </button>
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              flexWrap: "wrap",
+            }}
+          >
+            <button
+              type="button"
+              onClick={goHome}
+              style={headerLinkStyle}
+            >
+              Início
+            </button>
+
+            <button
+              type="button"
+              onClick={goToAccount}
+              style={headerAccountStyle}
+            >
+              {isLoggedIn ? "Minha conta" : "Entrar"}
+            </button>
+          </div>
+        </div>
+      </nav>
+
       <div
         style={{
           width:
             "min(1040px, calc(100% - 40px))",
           margin: "0 auto",
           padding:
-            "64px 0 100px",
+            "48px 0 100px",
         }}
       >
+        <button
+          type="button"
+          onClick={goToAccount}
+          style={{
+            border: 0,
+            padding: 0,
+            margin: "0 0 26px",
+            background: "transparent",
+            color: "#66625E",
+            fontSize: 14,
+            fontWeight: 650,
+            cursor: "pointer",
+          }}
+        >
+          ← {isLoggedIn ? "Voltar para Minha conta" : "Voltar para entrar"}
+        </button>
+
         <header
           style={{
             marginBottom: 38,
@@ -2854,6 +2963,27 @@ function CompareBlock({
     </div>
   );
 }
+
+const headerLinkStyle = {
+  border: 0,
+  background: "transparent",
+  padding: "10px 12px",
+  color: "#181818",
+  fontSize: 14,
+  fontWeight: 600,
+  cursor: "pointer",
+} as const;
+
+const headerAccountStyle = {
+  border: "1px solid #D6D6D1",
+  borderRadius: 8,
+  background: "#FFFFFF",
+  padding: "10px 14px",
+  color: "#181818",
+  fontSize: 14,
+  fontWeight: 650,
+  cursor: "pointer",
+} as const;
 
 const secondaryButtonStyle:
   React.CSSProperties = {
