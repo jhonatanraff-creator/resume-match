@@ -9,10 +9,12 @@ import type {
 
 export const runtime = "nodejs";
 
-const MODEL = "openrouter/free";
+const GROQ_MODEL = "qwen/qwen3.8-27b";
 
-const OPENROUTER_URL =
-  "https://openrouter.ai/api/v1/chat/completions";
+const GROQ_URL =
+  "https://api.groq.com/openai/v1/chat/completions";
+
+const REQUEST_TIMEOUT_MS = 60_000;
 
 type RequestBody = {
   resume?: StructuredResume;
@@ -44,30 +46,14 @@ type RawAdaptedExperience = {
   changes?: unknown;
 };
 
-type OpenRouterMessageContentPart = {
-  type?: string;
-  text?: string;
-};
-
-type OpenRouterResponse = {
+type GroqResponse = {
   model?: string;
 
   choices?: Array<{
     finish_reason?: string | null;
 
     message?: {
-      content?:
-        | string
-        | OpenRouterMessageContentPart[]
-        | null;
-
-      reasoning?: string | null;
-
-      reasoning_details?: Array<{
-        type?: string;
-        text?: string;
-        summary?: string;
-      }>;
+      content?: string | null;
     };
   }>;
 
@@ -250,222 +236,287 @@ function normalizeSkills(
   return result;
 }
 
-function extractMessageContent(
-  data: OpenRouterResponse,
-) {
-  const message =
-    data.choices?.[0]?.message;
-
-  if (!message) {
-    return "";
-  }
-
-  if (
-    typeof message.content ===
-    "string"
-  ) {
-    return message.content.trim();
-  }
-
-  if (
-    Array.isArray(message.content)
-  ) {
-    const joined =
-      message.content
-        .map((part) => {
-          if (
-            part?.type === "text" &&
-            typeof part.text === "string"
-          ) {
-            return part.text;
-          }
-
-          return "";
-        })
-        .filter(Boolean)
-        .join("\n")
-        .trim();
-
-    if (joined) {
-      return joined;
-    }
-  }
-
-  if (
-    typeof message.reasoning ===
-      "string" &&
-    message.reasoning.trim()
-  ) {
-    const reasoning =
-      message.reasoning.trim();
-
-    const firstBrace =
-      reasoning.indexOf("{");
-
-    const lastBrace =
-      reasoning.lastIndexOf("}");
-
-    if (
-      firstBrace !== -1 &&
-      lastBrace > firstBrace
-    ) {
-      return reasoning.slice(
-        firstBrace,
-        lastBrace + 1,
-      );
-    }
-  }
-
-  return "";
-}
-
-async function callOpenRouter(
+async function callGroq(
   prompt: string,
   attempt: number,
 ) {
   const apiKey =
-    process.env.OPENROUTER_API_KEY?.trim();
+    process.env.GROQ_API_KEY?.trim();
 
   if (!apiKey) {
     throw new Error(
-      "OPENROUTER_API_KEY não foi encontrada no .env.local.",
+      "GROQ_API_KEY não foi encontrada no ambiente.",
     );
   }
 
-  const response = await fetch(
-    OPENROUTER_URL,
-    {
-      method: "POST",
+  const controller =
+    new AbortController();
 
-      headers: {
-        "Content-Type":
-          "application/json",
-
-        Authorization:
-          `Bearer ${apiKey}`,
-
-        "X-Title":
-          "Resume Match MVP",
-      },
-
-      body: JSON.stringify({
-        model: MODEL,
-
-        messages: [
-          {
-            role: "system",
-
-            content: `
-Você responde somente JSON válido.
-
-Não use Markdown.
-
-Não use bloco de código.
-
-Não explique antes ou depois.
-
-Não exponha raciocínio.
-
-Sua resposta deve começar com { e terminar com }.
-            `.trim(),
-          },
-
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-
-        temperature: 0,
-
-        max_tokens:
-          attempt === 1
-            ? 8000
-            : 10000,
-
-        reasoning: {
-          effort: "low",
-          exclude: true,
-        },
-      }),
-    },
-  );
-
-  let data: OpenRouterResponse;
+  const timeout =
+    setTimeout(
+      () => controller.abort(),
+      REQUEST_TIMEOUT_MS,
+    );
 
   try {
-    data =
-      (await response.json()) as
-        OpenRouterResponse;
-  } catch {
-    throw new Error(
-      `OpenRouter respondeu com status ${response.status}, mas sem JSON válido.`,
-    );
-  }
+    const response = await fetch(
+      GROQ_URL,
+      {
+        method: "POST",
 
-  console.log(
-    `OpenRouter tentativa ${attempt}/2 - model:`,
-    data.model,
-  );
+        headers: {
+          "Content-Type":
+            "application/json",
 
-  console.log(
-    `OpenRouter tentativa ${attempt}/2 - finish reason:`,
-    data.choices?.[0]
-      ?.finish_reason,
-  );
-
-  if (!response.ok) {
-    const message =
-      data.error?.message ||
-      `OpenRouter respondeu com status ${response.status}.`;
-
-    throw new Error(message);
-  }
-
-  const content =
-    extractMessageContent(data);
-
-  if (!content) {
-    console.error(
-      `Resposta vazia do OpenRouter na tentativa ${attempt}/2:`,
-      JSON.stringify(
-        {
-          model:
-            data.model,
-
-          finishReason:
-            data.choices?.[0]
-              ?.finish_reason,
-
-          hasChoices:
-            Boolean(
-              data.choices?.length,
-            ),
-
-          hasMessage:
-            Boolean(
-              data.choices?.[0]
-                ?.message,
-            ),
+          Authorization:
+            `Bearer ${apiKey}`,
         },
-        null,
-        2,
-      ),
+
+        signal:
+          controller.signal,
+
+        body: JSON.stringify({
+          model:
+            GROQ_MODEL,
+
+          messages: [
+            {
+              role: "user",
+              content: `
+Você é o motor de alinhamento semântico de currículos do Resume Match.
+
+Responda somente com o objeto JSON solicitado.
+Não use Markdown.
+Não escreva explicações fora do JSON.
+Não exponha raciocínio.
+
+${prompt}
+              `.trim(),
+            },
+          ],
+
+          temperature: 0,
+
+          max_completion_tokens:
+            attempt === 1
+              ? 12000
+              : 15000,
+
+          reasoning_effort:
+            "none",
+
+          response_format: {
+            type: "json_schema",
+
+            json_schema: {
+              name:
+                "resume_match_adaptation",
+
+              strict: true,
+
+              schema: {
+                type: "object",
+                additionalProperties: false,
+
+                properties: {
+                  headline: {
+                    type: "string",
+                  },
+
+                  summary: {
+                    type: "string",
+                  },
+
+                  requirements: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      additionalProperties: false,
+                      properties: {
+                        requirement: {
+                          type: "string",
+                        },
+                        importance: {
+                          type: "string",
+                          enum: [
+                            "essential",
+                            "preferred",
+                            "contextual",
+                          ],
+                        },
+                        evidence: {
+                          type: "string",
+                          enum: [
+                            "strong",
+                            "partial",
+                            "none",
+                          ],
+                        },
+                        evidenceSource: {
+                          type: "string",
+                        },
+                        notes: {
+                          type: "string",
+                        },
+                      },
+                      required: [
+                        "requirement",
+                        "importance",
+                        "evidence",
+                        "evidenceSource",
+                        "notes",
+                      ],
+                    },
+                  },
+
+                  experiences: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      additionalProperties: false,
+                      properties: {
+                        experienceId: {
+                          type: "string",
+                        },
+                        adaptedBullets: {
+                          type: "array",
+                          items: {
+                            type: "string",
+                          },
+                        },
+                        changes: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            additionalProperties: false,
+                            properties: {
+                              original: {
+                                type: "string",
+                              },
+                              adapted: {
+                                type: "string",
+                              },
+                              reason: {
+                                type: "string",
+                              },
+                            },
+                            required: [
+                              "original",
+                              "adapted",
+                              "reason",
+                            ],
+                          },
+                        },
+                      },
+                      required: [
+                        "experienceId",
+                        "adaptedBullets",
+                        "changes",
+                      ],
+                    },
+                  },
+
+                  skills: {
+                    type: "array",
+                    items: {
+                      type: "string",
+                    },
+                  },
+
+                  supportedKeywords: {
+                    type: "array",
+                    items: {
+                      type: "string",
+                    },
+                  },
+
+                  unsupportedKeywords: {
+                    type: "array",
+                    items: {
+                      type: "string",
+                    },
+                  },
+                },
+
+                required: [
+                  "headline",
+                  "summary",
+                  "requirements",
+                  "experiences",
+                  "skills",
+                  "supportedKeywords",
+                  "unsupportedKeywords",
+                ],
+              },
+            },
+          },
+        }),
+      },
     );
 
-    throw new Error(
-      "O modelo respondeu, mas não entregou texto utilizável.",
+    let data: GroqResponse;
+
+    try {
+      data =
+        (await response.json()) as
+          GroqResponse;
+    } catch {
+      throw new Error(
+        `Groq respondeu com status ${response.status}, mas sem JSON válido.`,
+      );
+    }
+
+    console.log(
+      `Groq tentativa ${attempt}/2 - model:`,
+      data.model,
     );
+
+    console.log(
+      `Groq tentativa ${attempt}/2 - finish reason:`,
+      data.choices?.[0]
+        ?.finish_reason,
+    );
+
+    if (!response.ok) {
+      const message =
+        data.error?.message ||
+        `Groq respondeu com status ${response.status}.`;
+
+      throw new Error(message);
+    }
+
+    const content =
+      data.choices?.[0]
+        ?.message
+        ?.content
+        ?.trim() || "";
+
+    if (!content) {
+      throw new Error(
+        "O Groq respondeu, mas não entregou conteúdo utilizável.",
+      );
+    }
+
+    return {
+      content,
+      model:
+        data.model || GROQ_MODEL,
+    };
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.name === "AbortError"
+    ) {
+      throw new Error(
+        `A análise ultrapassou ${REQUEST_TIMEOUT_MS / 1000} segundos.`,
+      );
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timeout);
   }
-
-  return {
-    content,
-
-    model:
-      data.model || MODEL,
-  };
 }
-
 
 export async function POST(
   request: Request,
@@ -541,9 +592,6 @@ export async function POST(
     }
 
     const resumeForAnalysis = {
-      name:
-        resume.name,
-
       headline:
         resume.headline,
 
@@ -781,10 +829,10 @@ Descrição:
 ${jobDescription}
     `.trim();
 
-    let openRouterResult:
+    let aiResult:
       Awaited<
         ReturnType<
-          typeof callOpenRouter
+          typeof callGroq
         >
       > | null = null;
 
@@ -821,7 +869,7 @@ IMPORTANTE NESTA SEGUNDA TENTATIVA:
             : prompt;
 
         const result =
-          await callOpenRouter(
+          await callGroq(
             attemptPrompt,
             attempt,
           );
@@ -839,7 +887,7 @@ IMPORTANTE NESTA SEGUNDA TENTATIVA:
             JSON.parse(cleaned);
         } catch {
           console.error(
-            `JSON inválido recebido do OpenRouter na tentativa ${attempt}/2:`,
+            `JSON inválido recebido do Groq na tentativa ${attempt}/2:`,
             cleaned.slice(
               0,
               4000,
@@ -851,7 +899,7 @@ IMPORTANTE NESTA SEGUNDA TENTATIVA:
           );
         }
 
-        openRouterResult =
+        aiResult =
           result;
 
         parsed =
@@ -871,20 +919,20 @@ IMPORTANTE NESTA SEGUNDA TENTATIVA:
           attemptError;
 
         console.error(
-          `Falha na tentativa ${attempt}/2 do OpenRouter:`,
+          `Falha na tentativa ${attempt}/2 do Groq:`,
           attemptError,
         );
 
         if (attempt < 2) {
           console.log(
-            "Tentando novamente a adaptação com uma resposta mais compacta.",
+            "Tentando novamente a adaptação com uma resposta mais compacta no Groq.",
           );
         }
       }
     }
 
     if (
-      !openRouterResult ||
+      !aiResult ||
       !parsed
     ) {
       const lastMessage =
@@ -1128,10 +1176,10 @@ IMPORTANTE NESTA SEGUNDA TENTATIVA:
 
     return NextResponse.json({
       provider:
-        "openrouter",
+        "groq",
 
       model:
-        openRouterResult.model,
+        aiResult.model,
 
       adaptedResume,
     });
