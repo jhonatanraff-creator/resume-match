@@ -321,6 +321,7 @@ function extractMessageContent(
 
 async function callOpenRouter(
   prompt: string,
+  attempt: number,
 ) {
   const apiKey =
     process.env.OPENROUTER_API_KEY?.trim();
@@ -363,6 +364,8 @@ Não use bloco de código.
 
 Não explique antes ou depois.
 
+Não exponha raciocínio.
+
 Sua resposta deve começar com { e terminar com }.
             `.trim(),
           },
@@ -375,7 +378,10 @@ Sua resposta deve começar com { e terminar com }.
 
         temperature: 0,
 
-        max_tokens: 7000,
+        max_tokens:
+          attempt === 1
+            ? 8000
+            : 10000,
 
         reasoning: {
           effort: "low",
@@ -385,17 +391,25 @@ Sua resposta deve começar com { e terminar com }.
     },
   );
 
-  const data =
-    (await response.json()) as
-      OpenRouterResponse;
+  let data: OpenRouterResponse;
+
+  try {
+    data =
+      (await response.json()) as
+        OpenRouterResponse;
+  } catch {
+    throw new Error(
+      `OpenRouter respondeu com status ${response.status}, mas sem JSON válido.`,
+    );
+  }
 
   console.log(
-    "OpenRouter model:",
+    `OpenRouter tentativa ${attempt}/2 - model:`,
     data.model,
   );
 
   console.log(
-    "OpenRouter finish reason:",
+    `OpenRouter tentativa ${attempt}/2 - finish reason:`,
     data.choices?.[0]
       ?.finish_reason,
   );
@@ -413,7 +427,7 @@ Sua resposta deve começar com { e terminar com }.
 
   if (!content) {
     console.error(
-      "Resposta vazia do OpenRouter:",
+      `Resposta vazia do OpenRouter na tentativa ${attempt}/2:`,
       JSON.stringify(
         {
           model:
@@ -440,7 +454,7 @@ Sua resposta deve começar com { e terminar com }.
     );
 
     throw new Error(
-      "O modelo respondeu, mas não entregou texto utilizável. Tente novamente.",
+      "O modelo respondeu, mas não entregou texto utilizável.",
     );
   }
 
@@ -451,6 +465,7 @@ Sua resposta deve começar com { e terminar com }.
       data.model || MODEL,
   };
 }
+
 
 export async function POST(
   request: Request,
@@ -766,28 +781,119 @@ Descrição:
 ${jobDescription}
     `.trim();
 
-    const openRouterResult =
-      await callOpenRouter(prompt);
-
-    const cleaned =
-      cleanJsonContent(
-        openRouterResult.content,
-      );
+    let openRouterResult:
+      Awaited<
+        ReturnType<
+          typeof callOpenRouter
+        >
+      > | null = null;
 
     let parsed:
-      Record<string, unknown>;
+      Record<string, unknown> | null =
+      null;
 
-    try {
-      parsed =
-        JSON.parse(cleaned);
-    } catch {
-      console.error(
-        "JSON inválido recebido do OpenRouter:",
-        cleaned,
-      );
+    let lastAttemptError:
+      unknown = null;
+
+    for (
+      let attempt = 1;
+      attempt <= 2;
+      attempt += 1
+    ) {
+      try {
+        const retryInstruction =
+          attempt === 1
+            ? ""
+            : `
+
+IMPORTANTE NESTA SEGUNDA TENTATIVA:
+- responda de forma compacta;
+- não escreva raciocínio;
+- priorize no máximo 15 requisitos realmente relevantes da vaga;
+- registre changes somente quando houver alteração real;
+- mantenha bullets e justificativas curtos;
+- entregue o JSON completo antes de atingir o limite de tokens.
+            `.trim();
+
+        const attemptPrompt =
+          retryInstruction
+            ? `${prompt}\n\n${retryInstruction}`
+            : prompt;
+
+        const result =
+          await callOpenRouter(
+            attemptPrompt,
+            attempt,
+          );
+
+        const cleaned =
+          cleanJsonContent(
+            result.content,
+          );
+
+        let candidate:
+          Record<string, unknown>;
+
+        try {
+          candidate =
+            JSON.parse(cleaned);
+        } catch {
+          console.error(
+            `JSON inválido recebido do OpenRouter na tentativa ${attempt}/2:`,
+            cleaned.slice(
+              0,
+              4000,
+            ),
+          );
+
+          throw new Error(
+            "A IA respondeu, mas o JSON veio inválido.",
+          );
+        }
+
+        openRouterResult =
+          result;
+
+        parsed =
+          candidate;
+
+        if (attempt > 1) {
+          console.log(
+            `Adaptação recuperada com sucesso na tentativa ${attempt}/2.`,
+          );
+        }
+
+        break;
+      } catch (
+        attemptError
+      ) {
+        lastAttemptError =
+          attemptError;
+
+        console.error(
+          `Falha na tentativa ${attempt}/2 do OpenRouter:`,
+          attemptError,
+        );
+
+        if (attempt < 2) {
+          console.log(
+            "Tentando novamente a adaptação com uma resposta mais compacta.",
+          );
+        }
+      }
+    }
+
+    if (
+      !openRouterResult ||
+      !parsed
+    ) {
+      const lastMessage =
+        lastAttemptError instanceof Error
+          ? lastAttemptError.message
+          : "Erro desconhecido.";
 
       throw new Error(
-        "A IA respondeu, mas o JSON veio inválido. Tente novamente.",
+        `A adaptação falhou após 2 tentativas. ${lastMessage}`,
       );
     }
 
