@@ -679,7 +679,12 @@ export async function POST(
         resume.headline,
 
       summary:
-        resume.summary,
+        resume.summary
+          ? resume.summary.slice(
+              0,
+              1800,
+            )
+          : undefined,
 
       experiences:
         resume.experiences.map(
@@ -693,9 +698,6 @@ export async function POST(
             role:
               experience.role,
 
-            location:
-              experience.location,
-
             startDate:
               experience.startDate,
 
@@ -705,28 +707,48 @@ export async function POST(
             current:
               experience.current,
 
-            context:
-              experience.originalText
-                ? experience.originalText.slice(
-                    0,
-                    900,
-                  )
-                : "",
-
             bullets:
               experience.bullets
-                .slice(0, 10)
+                .slice(0, 8)
                 .map((bullet) =>
-                  bullet.slice(0, 700),
+                  bullet.slice(0, 520),
                 ),
           }),
         ),
 
       education:
-        resume.education,
+        resume.education.map(
+          (item) => ({
+            institution:
+              item.institution,
+
+            course:
+              item.course,
+
+            degree:
+              item.degree,
+
+            startDate:
+              item.startDate,
+
+            endDate:
+              item.endDate,
+          }),
+        ),
 
       courses:
-        resume.courses,
+        resume.courses.map(
+          (item) => ({
+            institution:
+              item.institution,
+
+            name:
+              item.name,
+
+            date:
+              item.date,
+          }),
+        ),
 
       skills:
         resume.skills,
@@ -736,178 +758,100 @@ export async function POST(
     };
 
     const prompt = `
-Você é um especialista sênior em recrutamento, ATS, redação de currículo e alinhamento semântico entre experiência profissional e descrição de vaga.
+Você é um especialista sênior em recrutamento, ATS e redação de currículo.
 
-Seu objetivo NÃO é resumir o currículo e NÃO é copiar palavras da vaga.
-Seu objetivo é produzir uma versão mais competitiva do MESMO currículo, aumentando a densidade de evidências relevantes para esta oportunidade sem alterar a verdade factual.
+OBJETIVO
+Criar uma versão mais competitiva do MESMO currículo para a vaga abaixo.
+Não resuma por resumir e não copie palavras da vaga.
+Aumente a densidade de evidências relevantes sem alterar fatos.
 
-Pense internamente em três etapas, mas retorne somente o JSON final:
-1. ENTENDER A VAGA: identifique o que realmente influencia a seleção, diferenciando requisitos essenciais, desejáveis e contexto.
-2. MAPEAR EVIDÊNCIAS: procure no currículo inteiro evidências concretas para cada requisito, inclusive em experiências anteriores, skills, cursos e formação.
-3. REESCREVER COM CRITÉRIO: só depois reorganize, priorize e reescreva o currículo para tornar essas evidências mais claras e relevantes.
+MÉTODO
+1. Entenda os requisitos reais da vaga.
+2. Procure evidências no currículo inteiro.
+3. Classifique cada requisito como strong, partial ou none.
+4. Só então reordene e reescreva o currículo.
 
-PRINCÍPIO CENTRAL:
-Uma reformulação só é válida quando melhora a comunicação de uma evidência que já existe.
-Se não houver evidência suficiente, registre a lacuna e NÃO tente compensá-la inventando conteúdo.
+VERDADE FACTUAL
+- Toda afirmação deve ser sustentada pelo currículo-base.
+- Não invente experiência, skill, ferramenta, método, tecnologia, domínio, cliente, formação, idioma, resultado, métrica, percentual, número ou responsabilidade.
+- Não aumente senioridade, liderança, ownership, autonomia ou escopo.
+- Não transporte fatos entre empresas.
+- Algo citado apenas na vaga nunca pode virar experiência do candidato.
+- Em dúvida: strong -> partial; partial -> none.
 
-OBJETIVO EDITORIAL:
-A versão adaptada deve ficar mais convincente para esta vaga porque seleciona e comunica melhor fatos reais do currículo.
-Ela não deve ficar mais fraca, mais genérica ou menos informativa nos aspectos relevantes apenas para ser menor.
+REQUISITOS
+- Extraia de 8 a 15 requisitos realmente relevantes, sem duplicações.
+- importance: essential, preferred ou contextual.
+- evidence: strong quando houver prova direta; partial quando houver relação incompleta/indireta; none quando faltar sustentação.
+- evidenceSource deve apontar brevemente a evidência real.
+- Para none, evidenceSource deve ser "".
+- Não use correspondência de palavra como prova suficiente.
 
-CRITÉRIOS DE QUALIDADE:
-- interprete requisitos semanticamente, não apenas por correspondência literal de palavras;
-- identifique os 8 a 15 requisitos mais relevantes quando a vaga tiver conteúdo suficiente;
-- procure evidências no currículo inteiro antes de decidir o que destacar ou reduzir;
-- priorize evidências específicas e verificáveis em vez de frases genéricas;
-- preserve e valorize resultados, métricas, escopo, contexto e responsabilidades que já existam;
-- use a terminologia da vaga quando ela for semanticamente equivalente ao que o currículo já comprova;
-- não faça keyword stuffing e não repita termos artificialmente;
-- prefira bullets claros, específicos, profissionais e orientados a evidência;
-- quando possível, estruture bullets como ação + contexto/objeto + consequência ou impacto já comprovado;
-- não crie impacto, resultado ou métrica quando o original não tiver;
-- não enfraqueça uma evidência concreta transformando-a em frase genérica;
-- não transforme o currículo em uma cópia da descrição da vaga;
-- o texto final deve continuar parecendo a trajetória real da pessoa.
+QUALIDADE EDITORIAL
+- O objetivo é aumentar aderência factual, não simplesmente encurtar.
+- Antes de remover conteúdo, procure uma evidência melhor no currículo inteiro.
+- Preserve fatos específicos, contexto, impacto, métricas e responsabilidades relevantes já existentes.
+- Prefira frases específicas a genéricas.
+- Use terminologia da vaga apenas quando for semanticamente equivalente ao que o currículo comprova.
+- Não faça keyword stuffing.
+- Experiências recentes e evidências de requisitos essenciais devem aparecer primeiro.
+- Experiências antigas ou pouco relacionadas podem receber menos destaque.
 
-REGRAS DE VERDADE:
-- toda afirmação deve ser sustentada pelo currículo-base;
-- pode reorganizar, priorizar, reordenar bullets, melhorar clareza e aproximar terminologia;
-- não invente experiência, skill, ferramenta, tecnologia, método, domínio, cliente, liderança, responsabilidade, formação, idioma, resultado, métrica, percentual ou número;
-- não aumente senioridade;
-- não transforme participação em liderança, apoio em ownership ou contato em responsabilidade formal;
-- não transporte responsabilidades, resultados ou ferramentas entre empresas;
-- não atribua ao profissional algo que aparece apenas na vaga;
-- em caso de dúvida entre strong e partial, use partial;
-- em caso de dúvida sobre a existência de evidência, prefira none;
-- se uma informação não puder ser rastreada até o currículo-base, ela não pode aparecer como fato no currículo adaptado.
+EXPERIÊNCIAS
+- Use somente experienceId existente.
+- Cada adaptedBullet deve ser sustentado pela própria experiência.
+- Reordene bullets por relevância para a vaga.
+- Reescreva apenas quando houver ganho de clareza, precisão ou alinhamento.
+- Não enfraqueça um bullet específico transformando-o em frase genérica.
+- Não elimine uma evidência forte apenas para reduzir tamanho.
+- Registre em changes apenas alterações substantivas.
+- Se uma experiência for pouco relevante, faça poucas alterações.
 
-REQUISITOS DA VAGA:
-- extraia somente requisitos que possam influenciar a seleção, evitando duplicações e frases equivalentes;
-- considere de 8 a 15 requisitos quando a vaga tiver conteúdo suficiente;
-- importance = essential quando a vaga indicar obrigação, responsabilidade central ou competência indispensável;
-- importance = preferred quando for diferencial, desejável ou complementar;
-- importance = contextual para informações de ambiente, domínio ou forma de trabalho que não sejam requisito principal;
-- evidence = strong quando o currículo demonstrar diretamente o requisito com evidência clara;
-- evidence = partial quando houver experiência relacionada, mas incompleta ou indireta;
-- evidence = none quando não houver sustentação suficiente;
-- evidenceSource deve citar de forma curta e específica a experiência, atividade, skill, curso ou formação que sustenta a classificação;
-- para evidence = none, evidenceSource deve ser string vazia;
-- notes devem explicar brevemente a relação ou lacuna sem inventar justificativas;
-- não classifique como strong apenas porque a mesma palavra aparece na vaga e no currículo: avalie a evidência real.
+BULLETS
+Quando houver evidência, prefira comunicar:
+- o que a pessoa fez;
+- em qual contexto/problema;
+- com quais áreas, usuários ou stakeholders;
+- qual competência relevante isso demonstra;
+- qual impacto REAL já existe no currículo.
 
-BUSCA DE EVIDÊNCIAS ANTES DA REESCRITA:
-Antes de decidir quais bullets reduzir ou manter, procure no currículo-base evidências que possam aumentar a aderência à vaga.
-Não se limite à experiência atual.
-Uma experiência anterior pode conter uma evidência mais forte para um requisito específico.
+Evite, quando houver informação mais específica:
+"Atuei em UX e UI";
+"Participei de projetos";
+"Trabalhei com stakeholders";
+"Contribuí para melhorias".
 
-Antes de remover conteúdo relevante, pergunte internamente:
-- existe neste currículo algum fato mais forte para este requisito?
-- este bullet demonstra pesquisa, discovery, estratégia, colaboração, liderança, Design System, IA, produto ou execução de forma relevante para esta vaga?
-- remover este bullet faria o currículo perder uma evidência importante?
+HEADLINE
+- Curta, profissional e fiel à senioridade real.
+- Aproxime da vaga somente quando houver sustentação.
+- Não copie o título da vaga artificialmente.
 
-Se a resposta for sim, preserve ou reformule a evidência em vez de simplesmente condensá-la.
+RESUMO
+- 2 a 4 frases.
+- Destaque os aspectos mais relevantes e comprovados para esta oportunidade.
+- Evite adjetivos vazios.
+- Não mencione lacunas.
 
-EXPERIÊNCIAS E BULLETS:
-- use somente experienceId existente;
-- não crie experiências, empresas ou cargos;
-- cada adaptedBullet deve ser sustentado exclusivamente pela própria experiência;
-- preserve fatos, métricas, tecnologias e responsabilidades originais;
-- reordene bullets para colocar primeiro os mais relevantes à vaga;
-- reescreva quando houver ganho real de clareza, precisão ou alinhamento semântico;
-- mantenha a especificidade do original: se houver resultado, contexto, público, processo ou impacto concreto, preserve-o;
-- não force todos os bullets a mencionar termos da vaga;
-- não transforme atividades operacionais em liderança estratégica;
-- não aumente escopo, autonomia ou senioridade;
-- registre em changes somente alterações substantivas, com original, adapted e um reason objetivo;
-- se uma experiência tiver pouca relação com a vaga, faça poucas alterações em vez de artificialmente adaptá-la;
-- não elimine uma evidência forte apenas para economizar texto;
-- não substitua um bullet específico por um bullet genérico quando o original possui mais valor probatório.
+SKILLS E KEYWORDS
+- skills: somente reordene skills já existentes.
+- supportedKeywords: termos relevantes da vaga com evidência real.
+- unsupportedKeywords: termos relevantes sem evidência suficiente.
 
-QUALIDADE DOS BULLETS:
-Cada bullet adaptado deve demonstrar pelo menos um destes pontos quando houver evidência no currículo:
-- que problema, necessidade ou oportunidade foi trabalhada;
-- o que a pessoa fez concretamente;
-- qual processo, disciplina ou responsabilidade foi aplicada;
-- com quais áreas, usuários ou stakeholders trabalhou;
-- qual competência relevante para a vaga é demonstrada;
-- qual resultado, impacto ou consequência REAL já aparece no currículo-base.
+REGRESSÃO EDITORIAL
+Antes de finalizar, compare original e adaptado.
+A versão nova não pode ficar mais pobre nos aspectos relevantes.
+Se uma evidência forte foi removida, preserve-a ou substitua-a apenas por evidência melhor.
 
-Evite formulações vagas quando houver evidência mais específica.
-Evite bullets como:
-- "Atuei em UX e UI";
-- "Participei de projetos";
-- "Trabalhei com stakeholders";
-- "Contribuí para melhorias".
+REVISÃO FINAL SILENCIOSA
+Confirme antes de responder:
+- ficou mais convincente para a vaga sem inventar?
+- perdeu alguma evidência importante?
+- há frases genéricas que podem usar fatos mais específicos?
+- aumentou senioridade, ownership, escopo ou impacto indevidamente?
+- os bullets mais relevantes vêm primeiro?
+- as lacunas continuam como lacunas?
 
-Se o currículo-base permitir, prefira explicitar o tipo de discovery, pesquisa, fluxo, decisão, colaboração, sistema, contexto ou impacto envolvido.
-
-PRIORIZAÇÃO DE CONTEÚDO:
-Dê mais destaque para:
-- experiências recentes;
-- evidências diretamente relacionadas aos requisitos essenciais;
-- responsabilidades de especialista quando realmente comprovadas;
-- Product Discovery, UX Research, prototipação, decisões de experiência, colaboração com Produto e Engenharia, Design Systems, IA, estratégia ou liderança quando forem relevantes para a vaga;
-- fatos que diferenciem o candidato e estejam sustentados no currículo.
-
-Dê menos destaque para:
-- experiências antigas sem relação direta com a vaga;
-- atividades repetidas em várias experiências;
-- detalhes que não ajudam a demonstrar aderência à oportunidade;
-- conteúdo puramente histórico que ocupa espaço sem fortalecer a candidatura.
-
-IMPORTANTE:
-Reduzir conteúdo é permitido, mas redução não é o objetivo principal.
-A meta é aumentar a densidade de evidências relevantes.
-Se quatro bullets são suficientes, eles devem ser os quatro fatos mais fortes para aquela vaga, e não apenas uma versão mais curta dos primeiros bullets existentes.
-
-HEADLINE:
-- deve representar a experiência real e aproximar o posicionamento da vaga apenas quando houver sustentação;
-- não copie o título da vaga se ele implicar senioridade, especialização ou responsabilidade não comprovada;
-- priorize áreas realmente demonstradas no currículo e relevantes para a vaga;
-- seja curta, específica e profissional;
-- não use palavras-chave apenas para aumentar similaridade textual.
-
-RESUMO:
-- escreva de 2 a 4 frases;
-- comece pelo posicionamento profissional realmente sustentado pelo currículo;
-- destaque 2 a 4 aspectos com maior relação com a vaga e evidência concreta;
-- mostre a combinação de competências mais relevante para a oportunidade, e não apenas uma lista de termos;
-- use fatos existentes e evite adjetivos vazios como "excelente", "apaixonado", "altamente qualificado" ou similares sem evidência;
-- não mencione lacunas ou requisitos ausentes no resumo;
-- não torne o resumo mais genérico do que o original se houver fatos fortes que possam diferenciá-lo.
-
-SKILLS E KEYWORDS:
-- skills: somente reordene skills que já existem no currículo;
-- coloque primeiro as skills mais relevantes e comprovadas para a vaga;
-- supportedKeywords: inclua termos relevantes da vaga somente quando houver evidência real no currículo;
-- unsupportedKeywords: inclua termos importantes da vaga que não tenham evidência suficiente;
-- uma palavra-chave suportada não autoriza inventar uma nova responsabilidade;
-- correspondência lexical não substitui evidência.
-
-TESTE DE REGRESSÃO EDITORIAL:
-Antes de finalizar cada experiência, compare mentalmente o original com a versão adaptada.
-A versão adaptada NÃO deve ficar objetivamente mais pobre nos aspectos relevantes à vaga.
-
-Se um bullet original contém uma evidência importante e a versão adaptada a remove, só faça isso se:
-- outra evidência mais forte já cobrir o mesmo requisito; ou
-- esse conteúdo for pouco relevante para a vaga.
-
-Caso contrário, preserve ou reformule a evidência.
-
-VERIFICAÇÃO FINAL ANTES DE RESPONDER:
-Faça uma revisão silenciosa do resultado e confirme:
-- o currículo adaptado ficou mais convincente para esta vaga?
-- cada afirmação nova é comprovável pelo currículo?
-- alguma evidência importante do currículo-base foi perdida sem motivo?
-- há frases genéricas que poderiam usar fatos mais específicos do currículo?
-- alguma frase aumentou senioridade, ownership, liderança, escopo ou impacto? Se sim, corrija;
-- alguma ferramenta, método ou responsabilidade veio apenas da vaga? Se sim, remova;
-- os bullets mais relevantes aparecem primeiro?
-- requisitos sem evidência permaneceram como lacunas em vez de serem inseridos no currículo?
-- a adaptação aumentou a densidade de evidência relevante, e não apenas a similaridade lexical?
-- cada mudança ajuda de fato a candidatura sem distorcer a trajetória?
-
-Se houver conflito entre aderência à vaga e fidelidade ao currículo, priorize SEMPRE a fidelidade factual.
+Se aderência e fidelidade entrarem em conflito, priorize SEMPRE a fidelidade factual.
 
 CURRÍCULO:
 ${JSON.stringify(resumeForAnalysis)}
